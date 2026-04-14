@@ -1,0 +1,26 @@
+# VADAR Visual Agent – Default Configuration
+# Loaded by evaluate_benchmark.py and vadar_agent.py
+
+vision_models:
+  object_detection: "facebook/detr-resnet-50"
+  depth_estimation: "Intel/dpt-large"
+  segmentation: "facebook/detr-resnet-50-panoptic"
+
+openai:
+  # Model used for spatial-reasoning code generation
+  model: "gpt-4o"
+  temperature: 0.3
+  max_tokens: 1500
+
+evaluation:
+  output_dir: "outputs"
+  save_traces: true
+  save_code: true
+  trace_dpi: 150
+
+spatial_reasoning:
+  # Depth values are normalised to [0, 1]: 0 = closest, 1 = furthest
+  depth_normalization: true
+  # Objects with depth difference below this threshold are considered
+  # "at the same distance"
+  distance_threshold: 0.05
