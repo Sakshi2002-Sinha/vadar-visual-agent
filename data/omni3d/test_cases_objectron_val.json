@@ -1,0 +1,98 @@
+[
+  {
+    "sample_id": "objectron_val_0001",
+    "image_path": "data/omni3d/images/objectron/train/bike_batch_0_4_0000000.jpg",
+    "questions": [
+      "What objects are visible in this image?",
+      "Which detected object appears closest to the camera?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_0002",
+    "image_path": "data/omni3d/images/objectron/train/bike_batch_0_4_0000100.jpg",
+    "questions": [
+      "What objects are visible in this image?",
+      "Which detected object appears closest to the camera?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_0003",
+    "image_path": "data/omni3d/images/objectron/train/bike_batch_0_4_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?",
+      "Which detected object appears closest to the camera?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_0004",
+    "image_path": "data/omni3d/images/objectron/train/bike_batch_10_10_0000000.jpg",
+    "questions": [
+      "What objects are visible in this image?",
+      "Which detected object appears closest to the camera?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_0005",
+    "image_path": "data/omni3d/images/objectron/train/bike_batch_10_10_0000100.jpg",
+    "questions": [
+      "What objects are visible in this image?",
+      "Which detected object appears closest to the camera?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_0006",
+    "image_path": "data/omni3d/images/objectron/train/bike_batch_10_10_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?",
+      "Which detected object appears closest to the camera?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_0007",
+    "image_path": "data/omni3d/images/objectron/train/bike_batch_10_10_0000300.jpg",
+    "questions": [
+      "What objects are visible in this image?",
+      "Which detected object appears closest to the camera?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_0008",
+    "image_path": "data/omni3d/images/objectron/train/bike_batch_10_13_0000000.jpg",
+    "questions": [
+      "What objects are visible in this image?",
+      "Which detected object appears closest to the camera?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_0009",
+    "image_path": "data/omni3d/images/objectron/train/bike_batch_10_13_0000100.jpg",
+    "questions": [
+      "What objects are visible in this image?",
+      "Which detected object appears closest to the camera?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_0010",
+    "image_path": "data/omni3d/images/objectron/train/bike_batch_10_13_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?",
+      "Which detected object appears closest to the camera?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_0011",
+    "image_path": "data/omni3d/images/objectron/train/bike_batch_10_13_0000300.jpg",
+    "questions": [
+      "What objects are visible in this image?",
+      "Which detected object appears closest to the camera?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_0012",
+    "image_path": "data/omni3d/images/objectron/train/bike_batch_10_1_0000000.jpg",
+    "questions": [
+      "What objects are visible in this image?",
+      "Which detected object appears closest to the camera?"
+    ]
+  }
+]

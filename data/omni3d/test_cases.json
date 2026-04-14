@@ -1,0 +1,9 @@
+[
+  {
+    "sample_id": "smoke_0001",
+    "image_path": "data/samples/sample.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  }
+]
