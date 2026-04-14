@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env
+
+# Secrets
+.env
+*.key
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Benchmark / test outputs
+benchmark_results/
+benchmark_results_*/
+
+# Downloaded images (committed by hand only)
+sample_images/*.jpg
+sample_images/*.png
+!sample_images/.gitkeep
+
+# Hugging Face model cache
+~/.cache/huggingface/
+
+# OS
+.DS_Store
+Thumbs.db
