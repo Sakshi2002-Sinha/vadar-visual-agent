@@ -1,0 +1,702 @@
+[
+  {
+    "sample_id": "objectron_val_100_0001",
+    "image_path": "data/omni3d/images/objectron/train/book_batch_22_28_0000100.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0002",
+    "image_path": "data/omni3d/images/objectron/train/camera_batch_15_9_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0003",
+    "image_path": "data/omni3d/images/objectron/train/chair_batch_46_5_0000500.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0004",
+    "image_path": "data/omni3d/images/objectron/train/chair_batch_27_21_0000000.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0005",
+    "image_path": "data/omni3d/images/objectron/train/cup_batch_40_33_0000000.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0006",
+    "image_path": "data/omni3d/images/objectron/train/shoe_batch_3_47_0000000.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0007",
+    "image_path": "data/omni3d/images/objectron/train/book_batch_36_0_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0008",
+    "image_path": "data/omni3d/images/objectron/train/shoe_batch_2_11_0000400.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0009",
+    "image_path": "data/omni3d/images/objectron/train/bottle_batch_7_0_0000000.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0010",
+    "image_path": "data/omni3d/images/objectron/train/shoe_batch_21_7_0000300.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0011",
+    "image_path": "data/omni3d/images/objectron/train/cup_batch_38_14_0000100.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0012",
+    "image_path": "data/omni3d/images/objectron/train/cup_batch_38_25_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0013",
+    "image_path": "data/omni3d/images/objectron/train/chair_batch_21_4_0000100.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0014",
+    "image_path": "data/omni3d/images/objectron/train/cereal_box_batch_10_11_0000100.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0015",
+    "image_path": "data/omni3d/images/objectron/train/laptop_batch_1_34_0000300.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0016",
+    "image_path": "data/omni3d/images/objectron/train/chair_batch_31_4_0000100.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0017",
+    "image_path": "data/omni3d/images/objectron/train/chair_batch_44_31_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0018",
+    "image_path": "data/omni3d/images/objectron/train/shoe_batch_28_42_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0019",
+    "image_path": "data/omni3d/images/objectron/train/laptop_batch_0_4_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0020",
+    "image_path": "data/omni3d/images/objectron/train/laptop_batch_31_8_0000300.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0021",
+    "image_path": "data/omni3d/images/objectron/train/laptop_batch_28_15_0000300.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0022",
+    "image_path": "data/omni3d/images/objectron/train/chair_batch_1_19_0000400.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0023",
+    "image_path": "data/omni3d/images/objectron/train/laptop_batch_16_6_0000000.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0024",
+    "image_path": "data/omni3d/images/objectron/train/laptop_batch_37_47_0000000.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0025",
+    "image_path": "data/omni3d/images/objectron/train/cup_batch_3_35_0000000.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0026",
+    "image_path": "data/omni3d/images/objectron/train/cereal_box_batch_34_6_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0027",
+    "image_path": "data/omni3d/images/objectron/train/bottle_batch_19_44_0000100.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0028",
+    "image_path": "data/omni3d/images/objectron/train/bike_batch_8_23_0000300.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0029",
+    "image_path": "data/omni3d/images/objectron/train/cup_batch_18_26_0000100.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0030",
+    "image_path": "data/omni3d/images/objectron/train/book_batch_14_15_0000000.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0031",
+    "image_path": "data/omni3d/images/objectron/train/book_batch_46_26_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0032",
+    "image_path": "data/omni3d/images/objectron/train/bottle_batch_37_13_0000100.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0033",
+    "image_path": "data/omni3d/images/objectron/train/shoe_batch_13_32_0000100.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0034",
+    "image_path": "data/omni3d/images/objectron/train/book_batch_12_9_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0035",
+    "image_path": "data/omni3d/images/objectron/train/chair_batch_39_49_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0036",
+    "image_path": "data/omni3d/images/objectron/train/bike_batch_3_44_0000300.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0037",
+    "image_path": "data/omni3d/images/objectron/train/shoe_batch_16_33_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0038",
+    "image_path": "data/omni3d/images/objectron/train/shoe_batch_27_31_0000000.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0039",
+    "image_path": "data/omni3d/images/objectron/train/cup_batch_13_18_0000100.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0040",
+    "image_path": "data/omni3d/images/objectron/train/chair_batch_1_19_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0041",
+    "image_path": "data/omni3d/images/objectron/train/cup_batch_29_45_0000000.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0042",
+    "image_path": "data/omni3d/images/objectron/train/camera_batch_9_15_0000100.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0043",
+    "image_path": "data/omni3d/images/objectron/train/bottle_batch_20_10_0000100.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0044",
+    "image_path": "data/omni3d/images/objectron/train/cereal_box_batch_37_34_0000000.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0045",
+    "image_path": "data/omni3d/images/objectron/train/bottle_batch_40_48_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0046",
+    "image_path": "data/omni3d/images/objectron/train/camera_batch_14_13_0000000.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0047",
+    "image_path": "data/omni3d/images/objectron/train/shoe_batch_38_41_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0048",
+    "image_path": "data/omni3d/images/objectron/train/cereal_box_batch_19_34_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0049",
+    "image_path": "data/omni3d/images/objectron/train/laptop_batch_4_22_0000100.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0050",
+    "image_path": "data/omni3d/images/objectron/train/cereal_box_batch_25_12_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0051",
+    "image_path": "data/omni3d/images/objectron/train/laptop_batch_3_2_0000000.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0052",
+    "image_path": "data/omni3d/images/objectron/train/chair_batch_24_6_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0053",
+    "image_path": "data/omni3d/images/objectron/train/cup_batch_8_9_0000000.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0054",
+    "image_path": "data/omni3d/images/objectron/train/book_batch_13_0_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0055",
+    "image_path": "data/omni3d/images/objectron/train/laptop_batch_11_7_0000100.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0056",
+    "image_path": "data/omni3d/images/objectron/train/camera_batch_19_41_0000100.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0057",
+    "image_path": "data/omni3d/images/objectron/train/book_batch_2_38_0000700.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0058",
+    "image_path": "data/omni3d/images/objectron/train/chair_batch_29_40_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0059",
+    "image_path": "data/omni3d/images/objectron/train/chair_batch_34_42_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0060",
+    "image_path": "data/omni3d/images/objectron/train/bottle_batch_29_45_0000100.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0061",
+    "image_path": "data/omni3d/images/objectron/train/bottle_batch_19_36_0000000.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0062",
+    "image_path": "data/omni3d/images/objectron/train/chair_batch_30_18_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0063",
+    "image_path": "data/omni3d/images/objectron/train/book_batch_49_32_0000100.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0064",
+    "image_path": "data/omni3d/images/objectron/train/shoe_batch_2_34_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0065",
+    "image_path": "data/omni3d/images/objectron/train/cup_batch_44_41_0000100.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0066",
+    "image_path": "data/omni3d/images/objectron/train/laptop_batch_10_45_0000300.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0067",
+    "image_path": "data/omni3d/images/objectron/train/laptop_batch_2_1_0000000.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0068",
+    "image_path": "data/omni3d/images/objectron/train/cup_batch_25_46_0000100.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0069",
+    "image_path": "data/omni3d/images/objectron/train/camera_batch_10_4_0000000.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0070",
+    "image_path": "data/omni3d/images/objectron/train/bike_batch_5_31_0000300.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0071",
+    "image_path": "data/omni3d/images/objectron/train/shoe_batch_9_17_0000000.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0072",
+    "image_path": "data/omni3d/images/objectron/train/laptop_batch_33_38_0000100.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0073",
+    "image_path": "data/omni3d/images/objectron/train/cereal_box_batch_22_20_0000100.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0074",
+    "image_path": "data/omni3d/images/objectron/train/cereal_box_batch_10_34_0000000.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0075",
+    "image_path": "data/omni3d/images/objectron/train/chair_batch_22_9_0000000.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0076",
+    "image_path": "data/omni3d/images/objectron/train/cereal_box_batch_12_44_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0077",
+    "image_path": "data/omni3d/images/objectron/train/book_batch_37_5_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0078",
+    "image_path": "data/omni3d/images/objectron/train/cereal_box_batch_38_13_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0079",
+    "image_path": "data/omni3d/images/objectron/train/cup_batch_38_48_0000000.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0080",
+    "image_path": "data/omni3d/images/objectron/train/chair_batch_46_10_0000100.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0081",
+    "image_path": "data/omni3d/images/objectron/train/chair_batch_9_1_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0082",
+    "image_path": "data/omni3d/images/objectron/train/shoe_batch_22_29_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0083",
+    "image_path": "data/omni3d/images/objectron/train/book_batch_20_10_0000100.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0084",
+    "image_path": "data/omni3d/images/objectron/train/cereal_box_batch_2_31_0000000.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0085",
+    "image_path": "data/omni3d/images/objectron/train/chair_batch_21_40_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0086",
+    "image_path": "data/omni3d/images/objectron/train/laptop_batch_19_0_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0087",
+    "image_path": "data/omni3d/images/objectron/train/laptop_batch_21_39_0000100.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0088",
+    "image_path": "data/omni3d/images/objectron/train/shoe_batch_22_29_0000000.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0089",
+    "image_path": "data/omni3d/images/objectron/train/cup_batch_6_37_0000100.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0090",
+    "image_path": "data/omni3d/images/objectron/train/shoe_batch_36_3_0000100.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0091",
+    "image_path": "data/omni3d/images/objectron/train/chair_batch_1_19_0000500.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0092",
+    "image_path": "data/omni3d/images/objectron/train/cereal_box_batch_37_34_0000300.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0093",
+    "image_path": "data/omni3d/images/objectron/train/shoe_batch_33_39_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0094",
+    "image_path": "data/omni3d/images/objectron/train/chair_batch_2_26_0001000.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0095",
+    "image_path": "data/omni3d/images/objectron/train/bottle_batch_42_40_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0096",
+    "image_path": "data/omni3d/images/objectron/train/shoe_batch_15_49_0000000.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0097",
+    "image_path": "data/omni3d/images/objectron/train/cereal_box_batch_23_45_0000700.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0098",
+    "image_path": "data/omni3d/images/objectron/train/chair_batch_5_17_0000000.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0099",
+    "image_path": "data/omni3d/images/objectron/train/shoe_batch_32_21_0000200.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  },
+  {
+    "sample_id": "objectron_val_100_0100",
+    "image_path": "data/omni3d/images/objectron/train/chair_batch_39_31_0000100.jpg",
+    "questions": [
+      "What objects are visible in this image?"
+    ]
+  }
+]

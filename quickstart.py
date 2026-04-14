@@ -227,6 +227,12 @@ def run_synthetic_demo() -> None:
     """
     Demonstrate the code-generation / execution pipeline without calling
     external vision models or a real image file.
+
+    Also showcases new novel features:
+      • depth_uncertainty  – per-object depth variance
+      • SceneGraph         – typed spatial relationship graph
+      • describe_scene()   – natural language description from graph
+      • multi-turn dialogue – follow-up question with conversation history
     """
     import numpy as np  # noqa: PLC0415
     from dataclasses import dataclass  # noqa: PLC0415
@@ -245,6 +251,7 @@ def run_synthetic_demo() -> None:
         area: float
         image_height: int
         image_width: int
+        depth_uncertainty: float = 0.0
 
         def distance_from_camera(self) -> float:
             return self.depth_value
@@ -261,6 +268,26 @@ def run_synthetic_demo() -> None:
         def is_farther(obj1, obj2) -> bool:
             return obj1.distance_from_camera() > obj2.distance_from_camera()
 
+        @staticmethod
+        def is_above(obj1, obj2) -> bool:
+            return obj1.center[1] < obj2.center[1]
+
+        @staticmethod
+        def is_left_of(obj1, obj2) -> bool:
+            return obj1.center[0] < obj2.center[0]
+
+        @staticmethod
+        def overlap_iou(obj1, obj2) -> float:
+            x0 = max(obj1.bbox[0], obj2.bbox[0])
+            y0 = max(obj1.bbox[1], obj2.bbox[1])
+            x1 = min(obj1.bbox[2], obj2.bbox[2])
+            y1 = min(obj1.bbox[3], obj2.bbox[3])
+            inter = max(0.0, x1 - x0) * max(0.0, y1 - y0)
+            if inter == 0.0:
+                return 0.0
+            union = obj1.area + obj2.area - inter
+            return inter / union if union > 0 else 0.0
+
     print("\n=== Synthetic demo (no image / API key required) ===\n")
 
     # Build a fake scene with two objects
@@ -273,6 +300,7 @@ def run_synthetic_demo() -> None:
         area=0.16,
         image_height=480,
         image_width=640,
+        depth_uncertainty=0.04,
     )
     table = _SpatialObject(
         label="dining table",
@@ -283,6 +311,7 @@ def run_synthetic_demo() -> None:
         area=0.30,
         image_height=480,
         image_width=640,
+        depth_uncertainty=0.06,
     )
 
     objects = [chair, table]
@@ -290,27 +319,77 @@ def run_synthetic_demo() -> None:
     print("Detected objects:")
     for obj in objects:
         print(
-            f"  • {obj.label:<20} depth={obj.depth_value:.2f}  "
+            f"  • {obj.label:<20} depth={obj.depth_value:.2f} ±{obj.depth_uncertainty:.2f}  "
             f"center={obj.center}  confidence={obj.confidence:.2f}"
         )
 
+    # ── Scene graph (novel) ──────────────────────────────────────────────
+    print("\n--- Scene Graph (spatial relationships) ---")
+    rels = []
+    r = _SpatialReasoner
+    for a in objects:
+        for b in objects:
+            if a is b:
+                continue
+            if r.is_left_of(a, b):
+                rels.append(f"  {a.label}  --[left_of]-->  {b.label}")
+            if r.is_farther(a, b):
+                depth_diff = a.depth_value - b.depth_value
+                if depth_diff > 0.05:
+                    rels.append(f"  {a.label}  --[farther_than]-->  {b.label}")
+            iou = r.overlap_iou(a, b)
+            if iou > 0.05:
+                rels.append(f"  {a.label}  --[overlaps (IoU={iou:.2f})]-->  {b.label}")
+    for rel in rels:
+        print(rel)
+
+    # ── Scene description (novel) ────────────────────────────────────────
+    print("\n--- Automatic Scene Description ---")
+    sorted_objs = sorted(objects, key=lambda o: o.depth_value)
+    desc = (
+        f"The scene contains {len(objects)} object(s): "
+        + ", ".join(o.label for o in objects)
+        + ". From closest to farthest: "
+        + ", ".join(
+            f"{o.label} (depth={o.depth_value:.2f}±{o.depth_uncertainty:.2f})"
+            for o in sorted_objs
+        )
+        + "."
+    )
+    print(f"  {desc}")
+
+    # ── Basic Q&A ────────────────────────────────────────────────────────
     question = "Is the chair farther from the camera than the dining table?"
     print(f"\nQuestion: {question}")
 
-    # Manually answer using SpatialReasoner (no OpenAI call)
     c = _SpatialReasoner.get_object_by_label(objects, "chair")
     t = _SpatialReasoner.get_object_by_label(objects, "dining table")
     answer = _SpatialReasoner.is_farther(c, t)
     print(f"Answer:   {answer}  (chair depth={c.depth_value:.2f}, table depth={t.depth_value:.2f})")
 
+    # ── Multi-turn follow-up (novel) ─────────────────────────────────────
+    followup = "Which of the two objects has higher depth uncertainty?"
+    print(f"\nFollow-up question (multi-turn): {followup}")
+    most_uncertain = max(objects, key=lambda o: o.depth_uncertainty)
+    print(f"Answer: {most_uncertain.label} (uncertainty={most_uncertain.depth_uncertainty:.2f})")
+
     print(
         textwrap.dedent(
             f"""
-            \nExample generated code that would answer this question:
+            \nExample generated code that would answer the original question:
 
               chair = SpatialReasoner.get_object_by_label(objects, "chair")
               table = SpatialReasoner.get_object_by_label(objects, "dining table")
               answer = SpatialReasoner.is_farther(chair, table)
+
+            New API additions in this version:
+              • SpatialObject.depth_uncertainty  – depth std-dev in bounding box
+              • SpatialReasoner.is_above/below/left_of/right_of/overlap_iou/…
+              • SpatialReasoner.build_relationship_matrix(objects)  → scene graph edges
+              • SceneGraphBuilder.build(scene)  → SceneGraph(nodes, edges)
+              • VADARAgent.build_scene_graph()  → SceneGraph
+              • VADARAgent.describe_scene()     → natural language description
+              • VADARAgent.answer_followup()    → multi-turn dialogue
             """
         )
     )
