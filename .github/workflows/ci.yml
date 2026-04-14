@@ -6,10 +6,16 @@ on:
   pull_request:
     branches: ["**"]
 
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
 
     strategy:
       fail-fast: false
@@ -59,6 +65,9 @@ jobs:
     name: Integration tests
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+
     steps:
       - uses: actions/checkout@v4
 
@@ -88,6 +97,9 @@ jobs:
   synthetic-demo:
     name: Synthetic demo smoke test
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
 
     steps:
       - uses: actions/checkout@v4

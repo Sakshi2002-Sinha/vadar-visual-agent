@@ -14,6 +14,7 @@ Architecture:
 import os
 import json
 import base64
+import math
 import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -170,6 +171,10 @@ class SpatialReasoner:
 class CodeGenerator:
     """Generates Python code via the OpenAI API and executes it with scene context."""
 
+    # Objects whose depth values differ by less than this threshold are
+    # considered to be at the same distance from the camera.
+    DEPTH_SIMILARITY_THRESHOLD: float = 0.05
+
     _SYSTEM_PROMPT = (
         "You are an expert spatial-reasoning assistant for 2D images with depth information.\n"
         "Depth values are normalised to [0, 1]: 0 = closest to the camera, 1 = farthest.\n"
@@ -186,8 +191,8 @@ class CodeGenerator:
         "  • The helper class `SpatialReasoner` is available with static methods: "
         "get_object_by_label, is_farther, relative_depth_distance, pixel_distance, "
         "vertical_position, horizontal_position.\n"
-        "  • When comparing depths, consider objects with |depth_a - depth_b| < 0.05 "
-        "to be at the same distance.\n"
+        f"  • When comparing depths, consider objects with |depth_a - depth_b| < "
+        f"{DEPTH_SIMILARITY_THRESHOLD} to be at the same distance.\n"
         "  • Output ONLY valid Python – no markdown fences, no prose, no comments."
     )
 
@@ -279,7 +284,7 @@ class CodeGenerator:
         """Execute *code* with scene context injected. Returns (answer, status)."""
         exec_globals: Dict[str, Any] = {
             "np": np,
-            "math": __import__("math"),
+            "math": math,
             "SpatialObject": SpatialObject,
             "SpatialReasoner": SpatialReasoner,
             "scene_analysis": scene,
