@@ -58,8 +58,8 @@ python evaluate_benchmark.py \
 ```bash
 python -c "
 from transformers import pipeline
-pipeline('object-detection',  model='facebook/detr-resnet-50')
-pipeline('depth-estimation',  model='Intel/dpt-large')
+pipeline('object-detection', model='facebook/detr-resnet-50')
+pipeline('depth-estimation', model='Intel/dpt-large')
 # Optional CLIP
 from transformers import CLIPModel, CLIPProcessor
 CLIPModel.from_pretrained('openai/clip-vit-base-patch32')

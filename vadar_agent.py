@@ -543,6 +543,10 @@ class CodeGenerator:
             "objects": scene.objects,
         }
         try:
+            # Security note: code is LLM-generated and executed in a
+            # restricted namespace.  Do NOT expose this to untrusted input in
+            # production without a proper sandboxing layer (e.g. RestrictedPython
+            # or a subprocess jail).
             exec(code, exec_globals)  # noqa: S102
             return exec_globals.get("answer", "No answer produced"), "Success"
         except Exception as exc:  # noqa: BLE001
@@ -712,10 +716,10 @@ class VADARAgent:
             cy = max(0, min(cy, height - 1))
 
             # Feature 1 – region-median depth instead of single center pixel
-            px0 = max(0, box["xmin"])
-            py0 = max(0, box["ymin"])
-            px1 = min(width, box["xmax"])
-            py1 = min(height, box["ymax"])
+            px0 = max(0, int(box["xmin"]))
+            py0 = max(0, int(box["ymin"]))
+            px1 = min(width, int(box["xmax"]))
+            py1 = min(height, int(box["ymax"]))
             region = dm_resized[py0:py1, px0:px1]
             depth_value = float(np.median(region)) if region.size > 0 else float(dm_resized[cy, cx])
 

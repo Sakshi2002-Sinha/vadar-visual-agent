@@ -357,7 +357,7 @@ class BenchmarkEvaluator:
             sample_result["questions_and_answers"].append(entry)
             print(
                 f"    Q{q_idx}: {question[:60]!r}  →  {answer_str}  [{status}]"
-                + ("  ✓" if correct else "  ✗" if correct is False else "")
+                + (f"  ✓" if correct else f"  ✗" if correct is False else "")
             )
 
         return sample_result
@@ -482,14 +482,25 @@ class BenchmarkEvaluator:
         ax.set_yticklabels(["Wrong", "Correct"])
 
         # Trend line using binned means
-        bins = np.linspace(min(xs), max(xs), 6)
+        xs_arr = np.array(xs)
+        ys_arr = np.array(ys, dtype=float)
+        conf_range = xs_arr.max() - xs_arr.min()
+        if conf_range < 1e-6:
+            # All confidence values are identical – skip trend line
+            plt.tight_layout()
+            plot_path = self.output_dir / "confidence_vs_accuracy.png"
+            plt.savefig(plot_path, dpi=120, bbox_inches="tight")
+            plt.close(fig)
+            print(f"  Confidence plot   : {plot_path}")
+            return
+        bins = np.linspace(xs_arr.min(), xs_arr.max(), 6)
         bin_means = []
         bin_centers = []
         for lo, hi in zip(bins[:-1], bins[1:]):
-            mask = [lo <= x <= hi for x in xs]
-            vals = [y for x, y, m in zip(xs, ys, mask) if m]
-            if vals:
-                bin_means.append(np.mean(vals))
+            mask = (xs_arr >= lo) & (xs_arr <= hi)
+            vals = ys_arr[mask]
+            if vals.size > 0:
+                bin_means.append(float(vals.mean()))
                 bin_centers.append((lo + hi) / 2)
         if bin_centers:
             ax.plot(bin_centers, bin_means, "r-o", linewidth=2, label="Binned mean")
