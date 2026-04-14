@@ -1,0 +1,64 @@
+[
+  {
+    "sample_id": "indoor_001",
+    "image_path": "data/images/indoor_001.jpg",
+    "questions": [
+      "Which object is closest to the camera?",
+      "How many objects are detected in this scene?",
+      "Is the chair to the left or right of the table?"
+    ],
+    "ground_truth": [
+      "chair",
+      "3",
+      "left"
+    ]
+  },
+  {
+    "sample_id": "indoor_002",
+    "image_path": "data/images/indoor_002.jpg",
+    "questions": [
+      "Is the sofa farther from the camera than the coffee table?",
+      "What is the object with the highest depth value?"
+    ],
+    "ground_truth": [
+      "False",
+      "bookshelf"
+    ]
+  },
+  {
+    "sample_id": "outdoor_001",
+    "image_path": "data/images/outdoor_001.jpg",
+    "questions": [
+      "Which car is closer to the camera?",
+      "Are there any people detected in the scene?"
+    ],
+    "ground_truth": [
+      "red car",
+      "True"
+    ]
+  },
+  {
+    "sample_id": "outdoor_002",
+    "image_path": "data/images/outdoor_002.jpg",
+    "questions": [
+      "How many objects are in the upper third of the image?",
+      "What is the approximate depth of the person?"
+    ],
+    "ground_truth": [
+      "2",
+      "0.3"
+    ]
+  },
+  {
+    "sample_id": "tabletop_001",
+    "image_path": "data/images/tabletop_001.jpg",
+    "questions": [
+      "Is the cup closer or farther than the book?",
+      "Which object occupies the largest area in the image?"
+    ],
+    "ground_truth": [
+      "closer",
+      "laptop"
+    ]
+  }
+]

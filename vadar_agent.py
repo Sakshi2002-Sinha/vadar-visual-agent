@@ -23,7 +23,6 @@ from datetime import datetime
 import numpy as np
 from PIL import Image
 import openai
-from transformers import pipeline as hf_pipeline
 
 
 # ---------------------------------------------------------------------------
@@ -34,6 +33,10 @@ class VisionModels:
     """Manages pretrained vision models for object detection, segmentation, and depth estimation."""
 
     def __init__(self, use_gpu: bool = False):
+        # Heavy imports are deferred so that the rest of the module can be
+        # imported (e.g. for unit testing) without requiring torch/transformers.
+        from transformers import pipeline as hf_pipeline  # noqa: PLC0415
+
         device = 0 if use_gpu else -1
         self.object_detector = hf_pipeline(
             "object-detection",
@@ -168,32 +171,45 @@ class CodeGenerator:
     """Generates Python code via the OpenAI API and executes it with scene context."""
 
     _SYSTEM_PROMPT = (
-        "You are an expert in spatial reasoning on 2D images that include depth information. "
-        "When asked a question about a scene, you write self-contained Python code that produces "
-        "a variable named `answer` holding the result. "
-        "Use only numpy, math, and the provided scene data structures. "
-        "Output ONLY valid Python – no markdown fences, no prose."
+        "You are an expert spatial-reasoning assistant for 2D images with depth information.\n"
+        "Depth values are normalised to [0, 1]: 0 = closest to the camera, 1 = farthest.\n"
+        "When asked a question about a scene you write self-contained Python code that assigns "
+        "the final answer to a variable named `answer`.\n"
+        "Rules:\n"
+        "  • Use only the built-in `math` module, `numpy` (as `np`), and the provided scene "
+        "data structures.\n"
+        "  • Access scene objects via the list `objects` (List[SpatialObject]).\n"
+        "  • Each SpatialObject has: label (str), confidence (float), "
+        "bbox (x_min,y_min,x_max,y_max normalised), center (cx,cy in pixels), "
+        "depth_value (float 0=close 1=far), area (normalised), "
+        "image_height, image_width.\n"
+        "  • The helper class `SpatialReasoner` is available with static methods: "
+        "get_object_by_label, is_farther, relative_depth_distance, pixel_distance, "
+        "vertical_position, horizontal_position.\n"
+        "  • When comparing depths, consider objects with |depth_a - depth_b| < 0.05 "
+        "to be at the same distance.\n"
+        "  • Output ONLY valid Python – no markdown fences, no prose, no comments."
     )
 
     def __init__(self, api_key: str, model: str = "gpt-4o"):
         openai.api_key = api_key
         self.model = model
+        # Tracks (question, generated_code, answer_str) tuples for multi-turn context
         self.history: List[Dict[str, Any]] = []
 
     def _build_user_prompt(self, question: str, scene: SceneAnalysis) -> str:
         objects_desc = "\n".join(
             f"  [{i}] label={o.label!r} confidence={o.confidence:.3f} "
-            f"depth={o.depth_value:.3f} center={o.center} area={o.area:.4f}"
+            f"depth={o.depth_value:.3f} center={o.center} area={o.area:.4f} "
+            f"position=({SpatialReasoner.horizontal_position(o)},{SpatialReasoner.vertical_position(o)})"
             for i, o in enumerate(scene.objects)
         )
         return (
-            f"Scene objects:\n{objects_desc}\n\n"
+            f"Scene objects ({len(scene.objects)} detected, "
+            f"image size {scene.image_shape[1]}×{scene.image_shape[0]}):\n"
+            f"{objects_desc}\n\n"
             f"Question: {question}\n\n"
-            "Write Python code that assigns the answer to a variable named `answer`. "
-            "You may use numpy as `np`. "
-            "The list `objects` contains SpatialObject instances with attributes: "
-            "label, confidence, bbox, center, depth_value, area, image_height, image_width. "
-            "The helper class `SpatialReasoner` is available."
+            "Write Python code that assigns the answer to a variable named `answer`."
         )
 
     def generate_code(self, question: str, scene: SceneAnalysis) -> str:
@@ -211,9 +227,51 @@ class CodeGenerator:
         self.history.append({
             "question": question,
             "code": code,
+            "answer": None,
             "timestamp": datetime.now().isoformat(),
         })
         return code
+
+    def generate_followup(self, followup_question: str, scene: SceneAnalysis) -> str:
+        """
+        Generate code for a follow-up question using the full conversation history.
+
+        The previous questions, generated code, and answers are injected as
+        assistant turns so the model can reference earlier results.
+        """
+        if not self.history:
+            return self.generate_code(followup_question, scene)
+
+        messages: List[Dict[str, Any]] = [
+            {"role": "system", "content": self._SYSTEM_PROMPT},
+        ]
+        for turn in self.history:
+            messages.append({"role": "user", "content": self._build_user_prompt(turn["question"], scene)})
+            assistant_content = turn["code"]
+            if turn.get("answer") is not None:
+                assistant_content += f"\n# answer = {turn['answer']}"
+            messages.append({"role": "assistant", "content": assistant_content})
+
+        messages.append({"role": "user", "content": self._build_user_prompt(followup_question, scene)})
+
+        response = openai.chat.completions.create(
+            model=self.model,
+            messages=messages,
+            temperature=0.3,
+            max_tokens=1500,
+        )
+        code = response.choices[0].message.content.strip()
+        self.history.append({
+            "question": followup_question,
+            "code": code,
+            "answer": None,
+            "timestamp": datetime.now().isoformat(),
+        })
+        return code
+
+    def reset_history(self) -> None:
+        """Clear conversation history to start a new independent session."""
+        self.history.clear()
 
     def execute_code(
         self, code: str, scene: SceneAnalysis
@@ -221,6 +279,7 @@ class CodeGenerator:
         """Execute *code* with scene context injected. Returns (answer, status)."""
         exec_globals: Dict[str, Any] = {
             "np": np,
+            "math": __import__("math"),
             "SpatialObject": SpatialObject,
             "SpatialReasoner": SpatialReasoner,
             "scene_analysis": scene,
@@ -228,7 +287,13 @@ class CodeGenerator:
         }
         try:
             exec(code, exec_globals)  # noqa: S102  # code is LLM-generated; review before production use
-            return exec_globals.get("answer", "No answer produced"), "Success"
+            answer = exec_globals.get("answer", "No answer produced")
+            # Back-fill the answer into the most recent history entry that lacks it
+            for entry in reversed(self.history):
+                if entry.get("code") == code and entry.get("answer") is None:
+                    entry["answer"] = str(answer)
+                    break
+            return answer, "Success"
         except Exception as exc:  # noqa: BLE001
             return None, f"Execution error: {exc}"
 
@@ -253,7 +318,7 @@ class VADARAgent:
     # Public API
     # ------------------------------------------------------------------
 
-    def analyze_image(self, image_path: str) -> SceneAnalysis:
+    def analyze_image(self, image_path: str, use_segmentation_fallback: bool = True) -> SceneAnalysis:
         """
         Run the full vision pipeline on *image_path* and return a SceneAnalysis.
 
@@ -261,6 +326,9 @@ class VADARAgent:
           1. Object detection
           2. Monocular depth estimation
           3. Build SpatialObject list from detections + depth map
+          4. (Optional) For objects with heavily overlapping bounding boxes,
+             use the mean depth over the segmentation mask rather than the
+             single centre-pixel depth, which is more robust.
         """
         image = Image.open(image_path).convert("RGB")
         image_array = np.array(image)
@@ -268,6 +336,13 @@ class VADARAgent:
 
         detections = self.vision_models.detect_objects(image)
         depth_map = self.vision_models.estimate_depth(image)
+
+        # Resize depth map once (reused for every object)
+        if depth_map.shape != (height, width):
+            import cv2  # noqa: PLC0415
+            dm_resized = cv2.resize(depth_map, (width, height))
+        else:
+            dm_resized = depth_map
 
         objects: List[SpatialObject] = []
         for det in detections:
@@ -283,13 +358,6 @@ class VADARAgent:
             cx = max(0, min(cx, width - 1))
             cy = max(0, min(cy, height - 1))
 
-            # Resize depth map to image dimensions if needed
-            if depth_map.shape != (height, width):
-                import cv2  # noqa: PLC0415
-                dm_resized = cv2.resize(depth_map, (width, height))
-            else:
-                dm_resized = depth_map
-
             objects.append(
                 SpatialObject(
                     label=det["label"],
@@ -303,6 +371,11 @@ class VADARAgent:
                 )
             )
 
+        if use_segmentation_fallback and len(objects) >= 2:
+            objects = self._apply_segmentation_depth_fallback(
+                image, objects, dm_resized, height, width
+            )
+
         analysis = SceneAnalysis(
             objects=objects,
             depth_map=depth_map,
@@ -310,6 +383,70 @@ class VADARAgent:
         )
         self._last_analysis = analysis
         return analysis
+
+    @staticmethod
+    def _bbox_iou(a: SpatialObject, b: SpatialObject) -> float:
+        """Compute IoU (Intersection over Union) of two normalised bounding boxes."""
+        ax1, ay1, ax2, ay2 = a.bbox
+        bx1, by1, bx2, by2 = b.bbox
+        ix1 = max(ax1, bx1)
+        iy1 = max(ay1, by1)
+        ix2 = min(ax2, bx2)
+        iy2 = min(ay2, by2)
+        if ix2 <= ix1 or iy2 <= iy1:
+            return 0.0
+        inter = (ix2 - ix1) * (iy2 - iy1)
+        union = a.area + b.area - inter
+        return inter / union if union > 0 else 0.0
+
+    def _apply_segmentation_depth_fallback(
+        self,
+        image: "Image.Image",
+        objects: List[SpatialObject],
+        dm_resized: np.ndarray,
+        height: int,
+        width: int,
+        iou_threshold: float = 0.15,
+    ) -> List[SpatialObject]:
+        """
+        For each pair of objects whose bounding boxes overlap significantly
+        (IoU ≥ *iou_threshold*), replace their single-pixel depth estimate
+        with the mean depth over the full bounding-box region. This is more
+        robust than a single centre pixel when objects partially occlude each
+        other.
+        """
+        # Identify objects involved in any significant overlap
+        overlap_indices: set = set()
+        for i in range(len(objects)):
+            for j in range(i + 1, len(objects)):
+                if self._bbox_iou(objects[i], objects[j]) >= iou_threshold:
+                    overlap_indices.add(i)
+                    overlap_indices.add(j)
+
+        if not overlap_indices:
+            return objects
+
+        updated: List[SpatialObject] = []
+        for idx, obj in enumerate(objects):
+            if idx not in overlap_indices:
+                updated.append(obj)
+                continue
+
+            # Compute mean depth over the bounding-box region
+            x1 = max(0, int(obj.bbox[0] * width))
+            y1 = max(0, int(obj.bbox[1] * height))
+            x2 = min(width, int(obj.bbox[2] * width))
+            y2 = min(height, int(obj.bbox[3] * height))
+
+            if x2 > x1 and y2 > y1:
+                region_depth = float(dm_resized[y1:y2, x1:x2].mean())
+            else:
+                region_depth = obj.depth_value  # fallback to centre pixel
+
+            from dataclasses import replace as _replace  # noqa: PLC0415
+            updated.append(_replace(obj, depth_value=region_depth))
+
+        return updated
 
     def answer_question(self, question: str, image_path: str) -> Dict[str, Any]:
         """
@@ -322,6 +459,31 @@ class VADARAgent:
 
         return {
             "question": question,
+            "answer": answer,
+            "status": status,
+            "code": code,
+            "objects_detected": [asdict(o) for o in scene.objects],
+            "timestamp": scene.timestamp,
+        }
+
+    def answer_followup(self, followup_question: str) -> Dict[str, Any]:
+        """
+        Answer a follow-up question using the most recently analysed scene and
+        the full conversation history so the model can reference prior answers.
+
+        Raises:
+            RuntimeError: if no image has been analysed yet.
+        """
+        if self._last_analysis is None:
+            raise RuntimeError(
+                "No image has been analysed yet. Call answer_question() first."
+            )
+        scene = self._last_analysis
+        code = self.code_generator.generate_followup(followup_question, scene)
+        answer, status = self.code_generator.execute_code(code, scene)
+
+        return {
+            "question": followup_question,
             "answer": answer,
             "status": status,
             "code": code,

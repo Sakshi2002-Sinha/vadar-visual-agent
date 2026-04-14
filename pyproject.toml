@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "vadar-visual-agent"
+version = "0.1.0"
+description = "VADAR-inspired Visual Agent for 3D Spatial Reasoning on 2D Images"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+
+keywords = ["spatial reasoning", "vision", "depth estimation", "object detection", "openai"]
+
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Image Recognition",
+]
+
+dependencies = [
+    "openai>=1.0.0",
+    "transformers>=4.38.0",
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "Pillow>=9.5.0",
+    "numpy>=1.24.0",
+    "opencv-python>=4.7.0",
+    "matplotlib>=3.7.0",
+    "huggingface-hub>=0.20.0",
+    "scikit-image>=0.20.0",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+]
+
+[project.scripts]
+vadar-quickstart = "quickstart:main"
+vadar-evaluate = "evaluate_benchmark:main"
+
+[project.urls]
+Repository = "https://github.com/Sakshi2002-Sinha/vadar-visual-agent"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["vadar_agent*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+
+[tool.coverage.run]
+source = ["vadar_agent"]
+omit = ["tests/*"]
