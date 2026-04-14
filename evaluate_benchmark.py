@@ -19,6 +19,7 @@ import argparse
 import json
 import os
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -147,8 +148,28 @@ class BenchmarkEvaluator:
         output_dir: str = "benchmark_results",
         use_gpu: bool = False,
         model: str = "gpt-4o",
+        provider: str = "auto",
+        openai_base_url: str = "",
+        github_token: str = "",
+        github_model: str = "gpt-4o-mini",
+        github_base_url: str = "https://models.inference.ai.azure.com",
+        min_detection_confidence: float = 0.35,
+        max_objects: int = 40,
+        enable_segmentation: bool = False,
     ) -> None:
-        self.agent = VADARAgent(api_key=api_key, use_gpu=use_gpu, model=model)
+        self.agent = VADARAgent(
+            api_key=api_key,
+            use_gpu=use_gpu,
+            model=model,
+            provider=provider,
+            openai_base_url=openai_base_url,
+            github_token=github_token,
+            github_model=github_model,
+            github_base_url=github_base_url,
+            min_detection_confidence=min_detection_confidence,
+            max_objects=max_objects,
+            enable_segmentation=enable_segmentation,
+        )
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.results: List[Dict[str, Any]] = []
@@ -165,6 +186,7 @@ class BenchmarkEvaluator:
         ground_truth: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """Evaluate one image with one or more questions."""
+        sample_start = time.perf_counter()
         sample_result: Dict[str, Any] = {
             "sample_id": sample_id,
             "image_path": image_path,
@@ -173,10 +195,23 @@ class BenchmarkEvaluator:
         }
 
         scene = self.agent.analyze_image(image_path)
+        scene_timing = getattr(scene, "processing_times", {})
+        sample_result["scene_metrics"] = {
+            "detection_ms": scene_timing.get("detection_ms"),
+            "depth_ms": scene_timing.get("depth_ms"),
+            "scene_total_ms": scene_timing.get("total_ms"),
+            "detections_before_filter": int(scene_timing.get("detections_before_filter", 0)),
+            "detections_after_filter": int(scene_timing.get("detections_after_filter", len(scene.objects))),
+        }
 
         for q_idx, question in enumerate(questions):
+            t_codegen = time.perf_counter()
             code = self.agent.code_generator.generate_code(question, scene)
+            codegen_ms = (time.perf_counter() - t_codegen) * 1000.0
+
+            t_exec = time.perf_counter()
             answer, status = self.agent.code_generator.execute_code(code, scene)
+            exec_ms = (time.perf_counter() - t_exec) * 1000.0
             answer_str = str(answer)
 
             # Correctness (optional)
@@ -210,6 +245,10 @@ class BenchmarkEvaluator:
                 "code": code,
                 "code_path": str(code_path),
                 "trace_path": str(trace_path),
+                "metrics": {
+                    "codegen_ms": round(codegen_ms, 3),
+                    "execution_ms": round(exec_ms, 3),
+                },
             }
             if correct is not None:
                 entry["correct"] = correct
@@ -220,6 +259,7 @@ class BenchmarkEvaluator:
                 + (f"  ✓" if correct else f"  ✗" if correct is False else "")
             )
 
+        sample_result["sample_total_ms"] = round((time.perf_counter() - sample_start) * 1000.0, 3)
         return sample_result
 
     def run_evaluation(self, test_cases: List[Dict[str, Any]]) -> None:
@@ -261,12 +301,44 @@ class BenchmarkEvaluator:
         if correct_entries:
             accuracy = sum(1 for q in correct_entries if q["correct"]) / len(correct_entries)
 
+        scene_total_values = [
+            r.get("scene_metrics", {}).get("scene_total_ms")
+            for r in self.results
+            if r.get("scene_metrics", {}).get("scene_total_ms") is not None
+        ]
+        codegen_values = [
+            q.get("metrics", {}).get("codegen_ms")
+            for r in self.results
+            for q in r["questions_and_answers"]
+            if q.get("metrics", {}).get("codegen_ms") is not None
+        ]
+        exec_values = [
+            q.get("metrics", {}).get("execution_ms")
+            for r in self.results
+            for q in r["questions_and_answers"]
+            if q.get("metrics", {}).get("execution_ms") is not None
+        ]
+        sample_totals = [
+            r.get("sample_total_ms")
+            for r in self.results
+            if r.get("sample_total_ms") is not None
+        ]
+
+        def _avg(values: List[float]) -> Optional[float]:
+            if not values:
+                return None
+            return float(sum(values) / len(values))
+
         summary = {
             "evaluation_date": datetime.now().isoformat(),
             "total_samples": len(self.results),
             "total_questions": total_q,
             "successful_executions": successful,
             "accuracy": accuracy,
+            "avg_scene_ms": _avg(scene_total_values),
+            "avg_codegen_ms": _avg(codegen_values),
+            "avg_execution_ms": _avg(exec_values),
+            "avg_sample_total_ms": _avg(sample_totals),
             "results_directory": str(self.output_dir),
         }
 
@@ -279,6 +351,12 @@ class BenchmarkEvaluator:
         print(f"  Successful: {successful}/{total_q}")
         if accuracy is not None:
             print(f"  Accuracy  : {accuracy * 100:.1f}%")
+        if summary["avg_scene_ms"] is not None:
+            print(f"  Avg scene : {summary['avg_scene_ms']:.1f} ms")
+        if summary["avg_codegen_ms"] is not None:
+            print(f"  Avg codegen: {summary['avg_codegen_ms']:.1f} ms")
+        if summary["avg_execution_ms"] is not None:
+            print(f"  Avg execute: {summary['avg_execution_ms']:.1f} ms")
         print(f"  Output    : {self.output_dir}")
 
 
@@ -309,6 +387,29 @@ def main() -> None:
         "--compute-accuracy", action="store_true", help="Compute accuracy from --results"
     )
     parser.add_argument("--model", default="gpt-4o", help="OpenAI model for code generation")
+    parser.add_argument(
+        "--provider",
+        default=os.environ.get("LLM_PROVIDER", "auto"),
+        choices=["auto", "github", "openai", "local"],
+        help="LLM provider routing strategy",
+    )
+    parser.add_argument(
+        "--min-detection-confidence",
+        type=float,
+        default=float(os.environ.get("VADAR_MIN_DET_CONF", "0.35")),
+        help="Filter detections below this confidence before reasoning",
+    )
+    parser.add_argument(
+        "--max-objects",
+        type=int,
+        default=int(os.environ.get("VADAR_MAX_OBJECTS", "40")),
+        help="Maximum detections to keep per image (0 means unlimited)",
+    )
+    parser.add_argument(
+        "--enable-segmentation",
+        action="store_true",
+        help="Preload panoptic segmentation model (off by default for speed)",
+    )
     args = parser.parse_args()
 
     if args.compute_accuracy:
@@ -323,8 +424,16 @@ def main() -> None:
         sys.exit(1)
 
     api_key = os.environ.get("OPENAI_API_KEY", "")
-    if not api_key:
-        print("ERROR: OPENAI_API_KEY is not set.")
+    openai_base_url = os.environ.get("OPENAI_BASE_URL", "")
+    github_token = os.environ.get("GITHUB_TOKEN", "")
+    github_model = os.environ.get("GITHUB_MODEL", "gpt-4o-mini")
+    github_base_url = os.environ.get("GITHUB_BASE_URL", "https://models.inference.ai.azure.com")
+
+    if args.provider == "github" and not github_token:
+        print("ERROR: provider=github requires GITHUB_TOKEN")
+        sys.exit(1)
+    if args.provider == "openai" and not api_key:
+        print("ERROR: provider=openai requires OPENAI_API_KEY")
         sys.exit(1)
 
     try:
@@ -339,6 +448,14 @@ def main() -> None:
         output_dir=args.output_dir,
         use_gpu=use_gpu,
         model=args.model,
+        provider=args.provider,
+        openai_base_url=openai_base_url,
+        github_token=github_token,
+        github_model=github_model,
+        github_base_url=github_base_url,
+        min_detection_confidence=args.min_detection_confidence,
+        max_objects=args.max_objects,
+        enable_segmentation=args.enable_segmentation,
     )
     evaluator.run_evaluation(test_cases)
     evaluator.generate_summary_report()

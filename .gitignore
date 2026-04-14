@@ -24,6 +24,11 @@ env/
 outputs/
 benchmark_results/
 
+# Large datasets (do not commit)
+data/omni3d/
+Omni3D_json.zip
+*.zip
+
 # Jupyter
 .ipynb_checkpoints/
 

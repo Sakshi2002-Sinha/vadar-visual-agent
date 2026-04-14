@@ -87,16 +87,42 @@ def check_torch_cuda() -> bool:
         return False
 
 
-def check_api_key() -> bool:
-    key = os.environ.get("OPENAI_API_KEY", "")
-    if key and key.startswith("sk-"):
-        _ok("OPENAI_API_KEY is set")
+def check_llm_provider() -> bool:
+    provider = os.environ.get("LLM_PROVIDER", "auto").strip().lower()
+    openai_key = os.environ.get("OPENAI_API_KEY", "").strip()
+    github_token = os.environ.get("GITHUB_TOKEN", "").strip()
+
+    if provider == "local":
+        _warn("LLM_PROVIDER=local – using free rule-based fallback only")
         return True
-    if key:
-        _warn("OPENAI_API_KEY is set but does not start with 'sk-' – may be invalid")
+
+    if provider == "github":
+        if github_token:
+            _ok("GITHUB_TOKEN is set (provider=github)")
+            return True
+        _fail("GITHUB_TOKEN is not set  (export GITHUB_TOKEN=ghp_...)")
+        return False
+
+    if provider == "openai":
+        if openai_key and openai_key.startswith("sk-"):
+            _ok("OPENAI_API_KEY is set (provider=openai)")
+            return True
+        if openai_key:
+            _warn("OPENAI_API_KEY is set but does not start with 'sk-' – may be invalid")
+            return True
+        _fail("OPENAI_API_KEY is not set  (export OPENAI_API_KEY=sk-...)")
+        return False
+
+    # provider=auto
+    if github_token:
+        _ok("LLM_PROVIDER=auto – using GitHub Models (GITHUB_TOKEN detected)")
         return True
-    _fail("OPENAI_API_KEY is not set  (export OPENAI_API_KEY=sk-...)")
-    return False
+    if openai_key:
+        _ok("LLM_PROVIDER=auto – using OpenAI (OPENAI_API_KEY detected)")
+        return True
+
+    _warn("No remote LLM credentials found – using free rule-based fallback")
+    return True
 
 
 def check_hf_model_cached(model_id: str) -> bool:
@@ -134,7 +160,7 @@ def verify_environment() -> bool:
     checks.append(("PIL", check_package("PIL", "Pillow")))
     checks.append(("numpy", check_package("numpy")))
     checks.append(("matplotlib", check_package("matplotlib")))
-    checks.append(("OPENAI_API_KEY", check_api_key()))
+    checks.append(("LLM provider credentials", check_llm_provider()))
 
     print()
     checks.append(("DETR detection", check_hf_model_cached("facebook/detr-resnet-50")))
@@ -164,10 +190,16 @@ def run_demo(image_path: str, question: str) -> None:
 
     from vadar_agent import VADARAgent  # noqa: PLC0415
 
+    provider = os.environ.get("LLM_PROVIDER", "auto")
     api_key = os.environ.get("OPENAI_API_KEY", "")
-    if not api_key:
-        _fail("OPENAI_API_KEY is not set – cannot run demo.")
-        sys.exit(1)
+    openai_model = os.environ.get("OPENAI_MODEL", "gpt-4o")
+    openai_base_url = os.environ.get("OPENAI_BASE_URL", "")
+    github_token = os.environ.get("GITHUB_TOKEN", "")
+    github_model = os.environ.get("GITHUB_MODEL", "gpt-4o-mini")
+    github_base_url = os.environ.get("GITHUB_BASE_URL", "https://models.inference.ai.azure.com")
+
+    if not api_key and not github_token and provider.lower().strip() != "local":
+        _warn("No OPENAI_API_KEY/GITHUB_TOKEN set – using free fallback reasoner.")
 
     try:
         import torch  # noqa: PLC0415
@@ -180,7 +212,18 @@ def run_demo(image_path: str, question: str) -> None:
     print(f"Question: {question}")
     print(f"GPU:      {'yes' if use_gpu else 'no (CPU)'}\n")
 
-    agent = VADARAgent(api_key=api_key, use_gpu=use_gpu)
+    agent = VADARAgent(
+        api_key=api_key,
+        use_gpu=use_gpu,
+        model=openai_model,
+        provider=provider,
+        openai_base_url=openai_base_url,
+        github_token=github_token,
+        github_model=github_model,
+        github_base_url=github_base_url,
+    )
+
+    print(f"LLM:      {agent.code_generator.planned_provider_label()}\n")
 
     # Step 1 – analyse
     print("[Step 1/4] Analysing image …", end=" ", flush=True)
@@ -201,6 +244,12 @@ def run_demo(image_path: str, question: str) -> None:
     # Step 3 – execute code
     print("[Step 3/4] Executing code …", end=" ", flush=True)
     answer, status = agent.code_generator.execute_code(code, scene)
+
+    if status.startswith("Execution error"):
+        print("↻  (retrying with local fallback)", end=" ", flush=True)
+        code = agent.code_generator.fallback_code_for(question, scene)
+        answer, status = agent.code_generator.execute_code(code, scene)
+
     print(f"✓  (status: {status})")
 
     # Step 4 – save outputs
