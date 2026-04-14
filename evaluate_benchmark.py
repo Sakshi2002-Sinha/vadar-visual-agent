@@ -30,7 +30,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
 
-from vadar_agent import SceneAnalysis, VADARAgent
+from vadar_agent import SceneAnalysis, SceneGraph, SceneGraphBuilder, VADARAgent
 
 
 # ---------------------------------------------------------------------------
@@ -43,16 +43,17 @@ def create_visual_trace(
     question: str,
     answer: str,
     save_path: Path,
+    scene_graph: Optional[SceneGraph] = None,
 ) -> None:
-    """Save a 2×2 panel figure with the original image, depth map, object
-    list, and the question/answer."""
+    """Save a 2×3 panel figure with the original image, depth map, object
+    list, question/answer, scene graph edges, and depth uncertainty chart."""
     import cv2  # noqa: PLC0415
 
     image = Image.open(image_path).convert("RGB")
     image_array = np.array(image)
     height, width = image_array.shape[:2]
 
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    fig, axes = plt.subplots(2, 3, figsize=(20, 10))
     fig.suptitle(
         f"Q: {question}\nA: {answer}",
         fontsize=11,
@@ -92,14 +93,37 @@ def create_visual_trace(
     plt.colorbar(im, ax=ax)
     ax.axis("off")
 
-    # Panel 3 – object list
+    # Panel 3 – depth uncertainty bar chart (novel)
+    ax = axes[0, 2]
+    if scene.objects:
+        labels = [o.label[:12] for o in scene.objects]
+        uncertainties = [o.depth_uncertainty for o in scene.objects]
+        depths = [o.depth_value for o in scene.objects]
+        x_pos = range(len(labels))
+        bars = ax.bar(x_pos, depths, color="steelblue", alpha=0.7, label="depth")
+        ax.errorbar(
+            x_pos, depths, yerr=uncertainties,
+            fmt="none", color="black", capsize=4, linewidth=1.5, label="±uncertainty"
+        )
+        ax.set_xticks(list(x_pos))
+        ax.set_xticklabels(labels, rotation=30, ha="right", fontsize=7)
+        ax.set_ylabel("Normalized depth")
+        ax.set_ylim(0, 1.1)
+        ax.set_title("Object Depth  (± uncertainty)")
+        ax.legend(fontsize=7)
+    else:
+        ax.axis("off")
+        ax.text(0.5, 0.5, "No objects", ha="center", va="center")
+
+    # Panel 4 – object list
     ax = axes[1, 0]
     ax.axis("off")
     lines = ["Detected Objects\n"]
     for i, obj in enumerate(scene.objects):
         lines.append(
             f"{i + 1}. {obj.label}\n"
-            f"   conf={obj.confidence:.3f}  depth={obj.depth_value:.3f}\n"
+            f"   conf={obj.confidence:.3f}  depth={obj.depth_value:.3f}"
+            f"  ±{obj.depth_uncertainty:.3f}\n"
             f"   center={obj.center}\n"
         )
     ax.text(
@@ -113,8 +137,27 @@ def create_visual_trace(
         bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.5),
     )
 
-    # Panel 4 – question / answer
+    # Panel 5 – scene graph edges (novel)
     ax = axes[1, 1]
+    ax.axis("off")
+    if scene_graph and scene_graph.edges:
+        rel_counts: Dict[str, int] = {}
+        for e in scene_graph.edges:
+            rel_counts[e.relation] = rel_counts.get(e.relation, 0) + 1
+        ax.set_title("Scene Graph  (relationship counts)")
+        rels = list(rel_counts.keys())
+        counts = [rel_counts[r] for r in rels]
+        y_pos = range(len(rels))
+        ax.barh(list(y_pos), counts, color="coral", alpha=0.8)
+        ax.set_yticks(list(y_pos))
+        ax.set_yticklabels(rels, fontsize=8)
+        ax.set_xlabel("# edges")
+        ax.axis("on")
+    else:
+        ax.text(0.5, 0.5, "Scene graph\nnot available", ha="center", va="center")
+
+    # Panel 6 – question / answer
+    ax = axes[1, 2]
     ax.axis("off")
     qa = f"Question:\n{question}\n\nAnswer:\n{answer}"
     ax.text(
@@ -149,6 +192,7 @@ class BenchmarkEvaluator:
         model: str = "gpt-4o",
     ) -> None:
         self.agent = VADARAgent(api_key=api_key, use_gpu=use_gpu, model=model)
+        self.scene_graph_builder = SceneGraphBuilder()
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.results: List[Dict[str, Any]] = []
@@ -173,10 +217,17 @@ class BenchmarkEvaluator:
         }
 
         scene = self.agent.analyze_image(image_path)
+        graph = self.scene_graph_builder.build(scene)
+
+        # Save scene graph JSON once per sample
+        graph_dir = self.output_dir / "scene_graphs"
+        graph_dir.mkdir(exist_ok=True)
+        graph_path = graph_dir / f"graph_{sample_id}.json"
+        graph_path.write_text(json.dumps(graph.to_dict(), indent=2, default=str))
 
         for q_idx, question in enumerate(questions):
             code = self.agent.code_generator.generate_code(question, scene)
-            answer, status = self.agent.code_generator.execute_code(code, scene)
+            answer, status = self.agent.code_generator.execute_code(code, scene, scene_graph=graph)
             answer_str = str(answer)
 
             # Correctness (optional)
@@ -197,7 +248,7 @@ class BenchmarkEvaluator:
             trace_dir.mkdir(exist_ok=True)
             trace_path = trace_dir / f"trace_{sample_id}_q{q_idx}.png"
             try:
-                create_visual_trace(image_path, scene, question, answer_str, trace_path)
+                create_visual_trace(image_path, scene, question, answer_str, trace_path, scene_graph=graph)
             except Exception as exc:  # noqa: BLE001
                 print(f"  [WARN] Could not create trace: {exc}")
                 trace_path = Path("N/A")
@@ -210,6 +261,7 @@ class BenchmarkEvaluator:
                 "code": code,
                 "code_path": str(code_path),
                 "trace_path": str(trace_path),
+                "scene_graph_path": str(graph_path),
             }
             if correct is not None:
                 entry["correct"] = correct
