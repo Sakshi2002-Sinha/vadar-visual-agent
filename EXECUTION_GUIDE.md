@@ -45,8 +45,27 @@ Visual trace saved to:   outputs/quickstart/trace_20240101_120000.png
 ```bash
 # Follow the official Omni3D data download instructions:
 # https://github.com/facebookresearch/omni3d#dataset
-# Place images under data/omni3d/images/
-# Place annotations under data/omni3d/annotations/
+
+# In your LOCAL GitHub clone (not Codespaces), download + extract annotations:
+./download_omni3d_json.sh ~/datasets/omni3d
+
+# Map extracted annotations into this repo layout:
+python setup_omni3d_data.py \
+  --source-annotations ~/datasets/omni3d/datasets/Omni3D \
+  --annotations-only \
+  --mode link \
+  --force
+
+# This creates the expected paths:
+# data/omni3d/images
+# data/omni3d/annotations
+
+# Later, after you separately download Omni3D image assets, run full setup:
+python setup_omni3d_data.py \
+  --source-images /path/to/omni3d/images \
+  --source-annotations ~/datasets/omni3d/datasets/Omni3D \
+  --mode link \
+  --force
 ```
 
 ### Prepare a test-cases JSON file

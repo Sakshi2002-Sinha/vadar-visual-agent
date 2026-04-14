@@ -2,7 +2,8 @@
 
 A VADAR-inspired Visual Agent for 3D Spatial Reasoning on 2D Images.  
 Implements agentic code generation and execution for spatial understanding,
-using object detection, monocular depth estimation, and the OpenAI API.
+using object detection, monocular depth estimation, and pluggable LLM providers
+(GitHub Models, OpenAI, or a local free fallback reasoner).
 
 ---
 
@@ -24,9 +25,12 @@ using object detection, monocular depth estimation, and the OpenAI API.
 # 1. Install dependencies
 pip install -r requirements.txt
 
-# 2. Set your OpenAI API key
+# 2. Configure your provider credentials
 cp .env.example .env
-# Edit .env and set OPENAI_API_KEY=sk-...
+# Edit .env:
+#   LLM_PROVIDER=auto
+#   GITHUB_TOKEN=...        # optional, recommended with GitHub Education
+#   OPENAI_API_KEY=sk-...   # optional
 
 # 3. Verify the environment
 python quickstart.py --verify-only
@@ -53,7 +57,7 @@ VisionModels  (DETR object-detection + DPT depth estimation)
 SceneAnalysis  (SpatialObject list + depth map)
   │
   ▼
-CodeGenerator  (OpenAI → Python program)
+CodeGenerator  (GitHub/OpenAI → Python program, with local fallback)
   │
   ▼
 execute_code() → answer

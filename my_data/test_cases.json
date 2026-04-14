@@ -1,0 +1,10 @@
+[
+  {
+    "sample_id": "custom_001",
+    "image_path": "my_data/images/room_001.jpg",
+    "questions": [
+      "What objects are visible?",
+      "Which object is closest to the camera?"
+    ]
+  }
+]

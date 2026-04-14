@@ -87,16 +87,42 @@ def check_torch_cuda() -> bool:
         return False
 
 
-def check_api_key() -> bool:
-    key = os.environ.get("OPENAI_API_KEY", "")
-    if key and key.startswith("sk-"):
-        _ok("OPENAI_API_KEY is set")
+def check_llm_provider() -> bool:
+    provider = os.environ.get("LLM_PROVIDER", "auto").strip().lower()
+    openai_key = os.environ.get("OPENAI_API_KEY", "").strip()
+    github_token = os.environ.get("GITHUB_TOKEN", "").strip()
+
+    if provider == "local":
+        _warn("LLM_PROVIDER=local – using free rule-based fallback only")
         return True
-    if key:
-        _warn("OPENAI_API_KEY is set but does not start with 'sk-' – may be invalid")
+
+    if provider == "github":
+        if github_token:
+            _ok("GITHUB_TOKEN is set (provider=github)")
+            return True
+        _fail("GITHUB_TOKEN is not set  (export GITHUB_TOKEN=ghp_...)")
+        return False
+
+    if provider == "openai":
+        if openai_key and openai_key.startswith("sk-"):
+            _ok("OPENAI_API_KEY is set (provider=openai)")
+            return True
+        if openai_key:
+            _warn("OPENAI_API_KEY is set but does not start with 'sk-' – may be invalid")
+            return True
+        _fail("OPENAI_API_KEY is not set  (export OPENAI_API_KEY=sk-...)")
+        return False
+
+    # provider=auto
+    if github_token:
+        _ok("LLM_PROVIDER=auto – using GitHub Models (GITHUB_TOKEN detected)")
         return True
-    _fail("OPENAI_API_KEY is not set  (export OPENAI_API_KEY=sk-...)")
-    return False
+    if openai_key:
+        _ok("LLM_PROVIDER=auto – using OpenAI (OPENAI_API_KEY detected)")
+        return True
+
+    _warn("No remote LLM credentials found – using free rule-based fallback")
+    return True
 
 
 def check_hf_model_cached(model_id: str) -> bool:
@@ -134,7 +160,7 @@ def verify_environment() -> bool:
     checks.append(("PIL", check_package("PIL", "Pillow")))
     checks.append(("numpy", check_package("numpy")))
     checks.append(("matplotlib", check_package("matplotlib")))
-    checks.append(("OPENAI_API_KEY", check_api_key()))
+    checks.append(("LLM provider credentials", check_llm_provider()))
 
     print()
     checks.append(("DETR detection", check_hf_model_cached("facebook/detr-resnet-50")))
@@ -164,10 +190,16 @@ def run_demo(image_path: str, question: str) -> None:
 
     from vadar_agent import VADARAgent  # noqa: PLC0415
 
+    provider = os.environ.get("LLM_PROVIDER", "auto")
     api_key = os.environ.get("OPENAI_API_KEY", "")
-    if not api_key:
-        _fail("OPENAI_API_KEY is not set – cannot run demo.")
-        sys.exit(1)
+    openai_model = os.environ.get("OPENAI_MODEL", "gpt-4o")
+    openai_base_url = os.environ.get("OPENAI_BASE_URL", "")
+    github_token = os.environ.get("GITHUB_TOKEN", "")
+    github_model = os.environ.get("GITHUB_MODEL", "gpt-4o-mini")
+    github_base_url = os.environ.get("GITHUB_BASE_URL", "https://models.inference.ai.azure.com")
+
+    if not api_key and not github_token and provider.lower().strip() != "local":
+        _warn("No OPENAI_API_KEY/GITHUB_TOKEN set – using free fallback reasoner.")
 
     try:
         import torch  # noqa: PLC0415
@@ -180,7 +212,18 @@ def run_demo(image_path: str, question: str) -> None:
     print(f"Question: {question}")
     print(f"GPU:      {'yes' if use_gpu else 'no (CPU)'}\n")
 
-    agent = VADARAgent(api_key=api_key, use_gpu=use_gpu)
+    agent = VADARAgent(
+        api_key=api_key,
+        use_gpu=use_gpu,
+        model=openai_model,
+        provider=provider,
+        openai_base_url=openai_base_url,
+        github_token=github_token,
+        github_model=github_model,
+        github_base_url=github_base_url,
+    )
+
+    print(f"LLM:      {agent.code_generator.planned_provider_label()}\n")
 
     # Step 1 – analyse
     print("[Step 1/4] Analysing image …", end=" ", flush=True)
@@ -193,6 +236,19 @@ def run_demo(image_path: str, question: str) -> None:
             f"depth={obj.depth_value:.3f}  center={obj.center}"
         )
 
+    # Scene graph summary
+    if scene.scene_graph is not None:
+        zones = __import__("vadar_agent").SpatialReasoner.cluster_by_depth(scene.objects)
+        print("\n  Depth zones:")
+        for zone, objs in zones.items():
+            labels = [o.label for o in objs]
+            if labels:
+                print(f"    {zone}: {labels}")
+        n_edges = len(scene.scene_graph.relations)
+        print(f"\n  Scene graph: {n_edges} spatial relation(s)")
+        if n_edges:
+            print(scene.scene_graph.summary(max_edges=10))
+
     # Step 2 – generate code
     print("\n[Step 2/4] Generating code …", end=" ", flush=True)
     code = agent.code_generator.generate_code(question, scene)
@@ -201,6 +257,12 @@ def run_demo(image_path: str, question: str) -> None:
     # Step 3 – execute code
     print("[Step 3/4] Executing code …", end=" ", flush=True)
     answer, status = agent.code_generator.execute_code(code, scene)
+
+    if status.startswith("Execution error"):
+        print("↻  (retrying with local fallback)", end=" ", flush=True)
+        code = agent.code_generator.fallback_code_for(question, scene)
+        answer, status = agent.code_generator.execute_code(code, scene)
+
     print(f"✓  (status: {status})")
 
     # Step 4 – save outputs
@@ -314,7 +376,72 @@ def run_synthetic_demo() -> None:
             """
         )
     )
-    print(f"{_GREEN}Synthetic demo completed.{_RESET}\n")
+
+    # Demonstrate new scene-graph features
+    print("=== New features demo ===\n")
+
+    # Depth-zone clustering
+    try:
+        from vadar_agent import SpatialReasoner as _SR, SceneGraph as _SG, SpatialObject as _SO  # noqa: PLC0415
+        _USE_REAL = True
+    except ImportError:
+        _USE_REAL = False
+
+    if _USE_REAL:
+        # Re-use the dataclass instances created above (they use the inline stub,
+        # but we can create real SpatialObject instances here for demonstration).
+        real_chair = _SO(
+            label="chair",
+            confidence=0.95,
+            bbox=(0.1, 0.2, 0.3, 0.8),
+            center=(128, 300),
+            depth_value=0.7,
+            area=0.16,
+            image_height=480,
+            image_width=640,
+        )
+        real_table = _SO(
+            label="dining table",
+            confidence=0.88,
+            bbox=(0.4, 0.3, 0.9, 0.9),
+            center=(416, 360),
+            depth_value=0.4,
+            area=0.30,
+            image_height=480,
+            image_width=640,
+        )
+        real_objects = [real_chair, real_table]
+
+        zones = _SR.cluster_by_depth(real_objects)
+        print("Depth zones (foreground=closest, background=farthest):")
+        for zone, objs in zones.items():
+            print(f"  {zone}: {[o.label for o in objs]}")
+
+        stats = _SR.scene_statistics(real_objects)
+        print(f"\nScene statistics: {stats}")
+
+        iou = _SR.overlap_ratio(real_chair, real_table)
+        print(f"\nBounding-box IoU (chair vs table): {iou:.3f}")
+
+        nn = _SR.find_nearest_neighbor(real_chair, real_objects)
+        print(f"Nearest neighbor of 'chair': {nn.label if nn else None}")
+
+        conf = _SR.reasoning_confidence(real_chair, real_table, "farther_than")
+        print(f"Reasoning confidence (chair farther_than table): {conf:.2f}")
+
+        graph = _SG(real_objects)
+        print(f"\nScene graph ({len(graph.relations)} edges):")
+        print(graph.summary())
+
+        multi = graph.multi_hop("dining table", ["closer_than"])
+        print(f"\nMulti-hop: objects closer than 'dining table': {multi}")
+    else:
+        _warn("vadar_agent not importable (missing dependencies) – skipping real new-feature demo.")
+        print("  New features: SceneGraph, cluster_by_depth, scene_statistics,")
+        print("  overlap_ratio, find_nearest_neighbor, reasoning_confidence,")
+        print("  multi_hop traversal – install dependencies to demo these.")
+
+    print(f"\n{_GREEN}Synthetic demo completed.{_RESET}\n")
 
 
 # ---------------------------------------------------------------------------
