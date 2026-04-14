@@ -88,7 +88,7 @@ def create_visual_trace(
     ax = axes[0, 1]
     dm = cv2.resize(scene.depth_map, (width, height))
     im = ax.imshow(dm, cmap="viridis")
-    ax.set_title("Estimated Depth Map  (bright=close, dark=far)")
+    ax.set_title("Estimated Depth Map  (bright/yellow=close, dark/purple=far)")
     plt.colorbar(im, ax=ax)
     ax.axis("off")
 

@@ -19,7 +19,7 @@ evaluation:
   trace_dpi: 150
 
 spatial_reasoning:
-  # Depth values are normalised to [0, 1]: 0 = closest, 1 = furthest
+  # Depth values are normalized to [0, 1]: 0 = closest, 1 = furthest
   depth_normalization: true
   # Objects with depth difference below this threshold are considered
   # "at the same distance"

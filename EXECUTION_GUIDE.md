@@ -293,5 +293,5 @@ CodeGenerator.execute_code()    → (answer, status)
 ### API Agent (VisionModels)
 
 - Wraps three HuggingFace `pipeline` calls
-- Depth values are normalised to `[0, 1]` (0 = closest, 1 = furthest)
-- All bounding-box coordinates are normalised to `[0, 1]` before storage
+- Depth values are normalized to `[0, 1]` (0 = closest, 1 = furthest)
+- All bounding-box coordinates are normalized to `[0, 1]` before storage

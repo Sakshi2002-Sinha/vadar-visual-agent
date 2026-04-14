@@ -56,7 +56,7 @@ class VisionModels:
         return self.object_detector(image)
 
     def estimate_depth(self, image: Image.Image) -> np.ndarray:
-        """Return a normalised depth map (0 = close, 1 = far) for *image*."""
+        """Return a normalized depth map (0 = close, 1 = far) for *image*."""
         result = self.depth_estimator(image)
         depth_map = np.array(result["depth"], dtype=np.float32)
         min_val, max_val = depth_map.min(), depth_map.max()
@@ -81,9 +81,9 @@ class SpatialObject:
     confidence: float
     # Normalised bounding box: (x_min, y_min, x_max, y_max) in [0, 1]
     bbox: Tuple[float, float, float, float]
-    # Pixel coordinates of the bounding-box centre
+    # Pixel coordinates of the bounding-box center
     center: Tuple[int, int]
-    # Normalised depth at the object centre (0 = close, 1 = far)
+    # Normalised depth at the object center (0 = close, 1 = far)
     depth_value: float
     # Normalised area relative to the full image
     area: float
@@ -91,7 +91,7 @@ class SpatialObject:
     image_width: int
 
     def distance_from_camera(self) -> float:
-        """Return normalised distance from the camera (0 = close, 1 = far)."""
+        """Return normalized distance from the camera (0 = close, 1 = far)."""
         return self.depth_value
 
 
@@ -127,19 +127,19 @@ class SpatialReasoner:
 
     @staticmethod
     def relative_depth_distance(obj1: SpatialObject, obj2: SpatialObject) -> float:
-        """Absolute difference in normalised depth between two objects."""
+        """Absolute difference in normalized depth between two objects."""
         return abs(obj1.distance_from_camera() - obj2.distance_from_camera())
 
     @staticmethod
     def pixel_distance(obj1: SpatialObject, obj2: SpatialObject) -> float:
-        """Euclidean distance (pixels) between the centres of two objects."""
+        """Euclidean distance (pixels) between the centers of two objects."""
         x1, y1 = obj1.center
         x2, y2 = obj2.center
         return float(np.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2))
 
     @staticmethod
     def vertical_position(obj: SpatialObject) -> str:
-        """Return 'upper', 'middle', or 'lower' based on vertical centre position."""
+        """Return 'upper', 'middle', or 'lower' based on vertical center position."""
         third = obj.image_height / 3
         cy = obj.center[1]
         if cy < third:
@@ -150,7 +150,7 @@ class SpatialReasoner:
 
     @staticmethod
     def horizontal_position(obj: SpatialObject) -> str:
-        """Return 'left', 'center', or 'right' based on horizontal centre position."""
+        """Return 'left', 'center', or 'right' based on horizontal center position."""
         third = obj.image_width / 3
         cx = obj.center[0]
         if cx < third:
@@ -227,7 +227,7 @@ class CodeGenerator:
             "objects": scene.objects,
         }
         try:
-            exec(code, exec_globals)  # noqa: S102
+            exec(code, exec_globals)  # noqa: S102  # code is LLM-generated; review before production use
             return exec_globals.get("answer", "No answer produced"), "Success"
         except Exception as exc:  # noqa: BLE001
             return None, f"Execution error: {exc}"
