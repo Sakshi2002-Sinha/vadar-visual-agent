@@ -4,7 +4,8 @@
 vision_models:
   object_detection: "facebook/detr-resnet-50"
   depth_estimation: "Intel/dpt-large"
-  segmentation: "facebook/detr-resnet-50-panoptic"
+  # Panoptic segmentation model removed (Feature 10) – saves ~2 GB VRAM
+  # clip_attributes: "openai/clip-vit-base-patch32"  # loaded only when use_clip=True
 
 openai:
   # Model used for spatial-reasoning code generation
@@ -24,3 +25,43 @@ spatial_reasoning:
   # Objects with depth difference below this threshold are considered
   # "at the same distance"
   distance_threshold: 0.05
+
+# ── Novel enhancements ───────────────────────────────────────────────────────
+
+# Feature 5 – Confidence threshold + IoU-NMS
+detection:
+  # Discard detections below this confidence score
+  threshold: 0.7
+  # Suppress overlapping boxes with IoU above this value
+  nms_iou_threshold: 0.5
+
+# Feature 1 – Region-averaged (median) depth
+depth_sampling:
+  # When true, uses the median depth of all pixels inside the bounding box
+  # instead of a single center pixel (more robust for large / occluded objects)
+  use_region_median: true
+
+# Feature 7 – Depth inversion guard
+depth_inversion_guard:
+  # Automatically flip the depth map when bottom-of-frame depth > top-of-frame
+  # depth by more than the flip_threshold (heuristic for natural scenes)
+  enabled: true
+  flip_threshold: 0.10
+
+# Feature 2 – GPT-4o Vision multimodal context
+vision_llm:
+  # Send the image to the LLM alongside the text scene description
+  # Requires a vision-capable model (gpt-4o, gpt-4-vision-preview, …)
+  enabled: true
+
+# Feature 6 – CLIP attribute extraction (color / material / size)
+clip_attributes:
+  # Disabled by default to avoid ~2 s extra startup time
+  # Enable with --use-clip flag or use_clip=True in VADARAgent
+  enabled: false
+  model: "openai/clip-vit-base-patch32"
+
+# Feature 3 – Self-repair code execution loop
+code_repair:
+  # Number of automatic retry attempts after a code execution error
+  max_retries: 2
