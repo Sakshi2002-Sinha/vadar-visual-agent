@@ -236,6 +236,19 @@ def run_demo(image_path: str, question: str) -> None:
             f"depth={obj.depth_value:.3f}  center={obj.center}"
         )
 
+    # Scene graph summary
+    if scene.scene_graph is not None:
+        zones = __import__("vadar_agent").SpatialReasoner.cluster_by_depth(scene.objects)
+        print("\n  Depth zones:")
+        for zone, objs in zones.items():
+            labels = [o.label for o in objs]
+            if labels:
+                print(f"    {zone}: {labels}")
+        n_edges = len(scene.scene_graph.relations)
+        print(f"\n  Scene graph: {n_edges} spatial relation(s)")
+        if n_edges:
+            print(scene.scene_graph.summary(max_edges=10))
+
     # Step 2 – generate code
     print("\n[Step 2/4] Generating code …", end=" ", flush=True)
     code = agent.code_generator.generate_code(question, scene)
@@ -363,7 +376,72 @@ def run_synthetic_demo() -> None:
             """
         )
     )
-    print(f"{_GREEN}Synthetic demo completed.{_RESET}\n")
+
+    # Demonstrate new scene-graph features
+    print("=== New features demo ===\n")
+
+    # Depth-zone clustering
+    try:
+        from vadar_agent import SpatialReasoner as _SR, SceneGraph as _SG, SpatialObject as _SO  # noqa: PLC0415
+        _USE_REAL = True
+    except ImportError:
+        _USE_REAL = False
+
+    if _USE_REAL:
+        # Re-use the dataclass instances created above (they use the inline stub,
+        # but we can create real SpatialObject instances here for demonstration).
+        real_chair = _SO(
+            label="chair",
+            confidence=0.95,
+            bbox=(0.1, 0.2, 0.3, 0.8),
+            center=(128, 300),
+            depth_value=0.7,
+            area=0.16,
+            image_height=480,
+            image_width=640,
+        )
+        real_table = _SO(
+            label="dining table",
+            confidence=0.88,
+            bbox=(0.4, 0.3, 0.9, 0.9),
+            center=(416, 360),
+            depth_value=0.4,
+            area=0.30,
+            image_height=480,
+            image_width=640,
+        )
+        real_objects = [real_chair, real_table]
+
+        zones = _SR.cluster_by_depth(real_objects)
+        print("Depth zones (foreground=closest, background=farthest):")
+        for zone, objs in zones.items():
+            print(f"  {zone}: {[o.label for o in objs]}")
+
+        stats = _SR.scene_statistics(real_objects)
+        print(f"\nScene statistics: {stats}")
+
+        iou = _SR.overlap_ratio(real_chair, real_table)
+        print(f"\nBounding-box IoU (chair vs table): {iou:.3f}")
+
+        nn = _SR.find_nearest_neighbor(real_chair, real_objects)
+        print(f"Nearest neighbor of 'chair': {nn.label if nn else None}")
+
+        conf = _SR.reasoning_confidence(real_chair, real_table, "farther_than")
+        print(f"Reasoning confidence (chair farther_than table): {conf:.2f}")
+
+        graph = _SG(real_objects)
+        print(f"\nScene graph ({len(graph.relations)} edges):")
+        print(graph.summary())
+
+        multi = graph.multi_hop("dining table", ["closer_than"])
+        print(f"\nMulti-hop: objects closer than 'dining table': {multi}")
+    else:
+        _warn("vadar_agent not importable (missing dependencies) – skipping real new-feature demo.")
+        print("  New features: SceneGraph, cluster_by_depth, scene_statistics,")
+        print("  overlap_ratio, find_nearest_neighbor, reasoning_confidence,")
+        print("  multi_hop traversal – install dependencies to demo these.")
+
+    print(f"\n{_GREEN}Synthetic demo completed.{_RESET}\n")
 
 
 # ---------------------------------------------------------------------------

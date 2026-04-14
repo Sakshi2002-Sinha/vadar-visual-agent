@@ -7,7 +7,9 @@ Architecture:
   SpatialObject     – dataclass representing one detected object with spatial attributes
   SceneAnalysis     – container holding all objects + depth map for a single image
   SpatialReasoner   – pure-function helpers for spatial comparisons
-    CodeGenerator     – calls GitHub Models/OpenAI APIs (with local fallback) to generate and exec code
+  SpatialRelation   – dataclass for a single directed spatial edge (subject --rel--> object)
+  SceneGraph        – pairwise spatial-relation graph with multi-hop traversal
+  CodeGenerator     – calls GitHub Models/OpenAI APIs (with local fallback) to generate and exec code
   VADARAgent        – top-level orchestrator
 """
 
@@ -114,6 +116,8 @@ class SceneAnalysis:
     image_shape: Tuple[int, ...]
     processing_times: Dict[str, float] = field(default_factory=dict)
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+    # Populated by VADARAgent.analyze_image when build_scene_graph=True.
+    scene_graph: Any = field(default=None)
 
 
 # ---------------------------------------------------------------------------
@@ -185,6 +189,300 @@ class SpatialReasoner:
             return "right"
         return "center"
 
+    @staticmethod
+    def is_above(obj1: SpatialObject, obj2: SpatialObject) -> bool:
+        """Return True if *obj1* is above *obj2* in image coordinates (smaller y)."""
+        return obj1.center[1] < obj2.center[1]
+
+    @staticmethod
+    def is_below(obj1: SpatialObject, obj2: SpatialObject) -> bool:
+        """Return True if *obj1* is below *obj2* in image coordinates (larger y)."""
+        return obj1.center[1] > obj2.center[1]
+
+    @staticmethod
+    def overlap_ratio(obj1: SpatialObject, obj2: SpatialObject) -> float:
+        """Intersection-over-union of the two bounding boxes (0 = no overlap, 1 = identical)."""
+        x0 = max(obj1.bbox[0], obj2.bbox[0])
+        y0 = max(obj1.bbox[1], obj2.bbox[1])
+        x1 = min(obj1.bbox[2], obj2.bbox[2])
+        y1 = min(obj1.bbox[3], obj2.bbox[3])
+        if x1 <= x0 or y1 <= y0:
+            return 0.0
+        inter = (x1 - x0) * (y1 - y0)
+        area1 = (obj1.bbox[2] - obj1.bbox[0]) * (obj1.bbox[3] - obj1.bbox[1])
+        area2 = (obj2.bbox[2] - obj2.bbox[0]) * (obj2.bbox[3] - obj2.bbox[1])
+        union = area1 + area2 - inter
+        return float(inter / union) if union > 0 else 0.0
+
+    @staticmethod
+    def find_nearest_neighbor(
+        obj: SpatialObject, objects: List[SpatialObject]
+    ) -> Optional[SpatialObject]:
+        """Return the object (other than *obj*) with the smallest pixel distance to *obj*."""
+        others = [o for o in objects if o is not obj]
+        if not others:
+            return None
+        return min(others, key=lambda o: SpatialReasoner.pixel_distance(obj, o))
+
+    @staticmethod
+    def cluster_by_depth(
+        objects: List[SpatialObject], n_zones: int = 3
+    ) -> Dict[str, List[SpatialObject]]:
+        """Partition objects into *n_zones* depth zones.
+
+        With the default of 3 zones the keys are 'foreground', 'midground',
+        and 'background' (depth 0=closest, 1=farthest).
+        """
+        if n_zones == 3:
+            zone_labels = ["foreground", "midground", "background"]
+        else:
+            zone_labels = [f"zone_{i}" for i in range(n_zones)]
+        result: Dict[str, List[SpatialObject]] = {lbl: [] for lbl in zone_labels}
+        if not objects:
+            return result
+        zone_size = 1.0 / n_zones
+        for obj in objects:
+            idx = min(int(obj.depth_value / zone_size), n_zones - 1)
+            result[zone_labels[idx]].append(obj)
+        return result
+
+    @staticmethod
+    def count_by_category(objects: List[SpatialObject]) -> Dict[str, int]:
+        """Return a dict mapping each label to its instance count."""
+        counts: Dict[str, int] = {}
+        for obj in objects:
+            counts[obj.label] = counts.get(obj.label, 0) + 1
+        return counts
+
+    @staticmethod
+    def scene_statistics(objects: List[SpatialObject]) -> Dict[str, Any]:
+        """Return aggregate statistics (count, depth, confidence, area) for the scene."""
+        if not objects:
+            return {"count": 0}
+        depths = [o.depth_value for o in objects]
+        confs = [o.confidence for o in objects]
+        areas = [o.area for o in objects]
+        return {
+            "count": len(objects),
+            "categories": SpatialReasoner.count_by_category(objects),
+            "depth": {
+                "min": float(min(depths)),
+                "max": float(max(depths)),
+                "mean": float(sum(depths) / len(depths)),
+            },
+            "confidence": {
+                "min": float(min(confs)),
+                "max": float(max(confs)),
+                "mean": float(sum(confs) / len(confs)),
+            },
+            "area": {
+                "min": float(min(areas)),
+                "max": float(max(areas)),
+                "mean": float(sum(areas) / len(areas)),
+            },
+        }
+
+    @staticmethod
+    def reasoning_confidence(obj1: SpatialObject, obj2: SpatialObject, relation: str) -> float:
+        """Estimate confidence (0–1) that *relation* holds between *obj1* and *obj2*.
+
+        Higher confidence when the margin between the compared values is large
+        relative to the measurement range.
+        """
+        if relation in {"closer_than", "farther_than"}:
+            margin = abs(obj1.depth_value - obj2.depth_value)
+            return float(min(margin / 0.5, 1.0))
+        if relation in {"left_of", "right_of"}:
+            w = max(obj1.image_width, obj2.image_width, 1)
+            margin = abs(obj1.center[0] - obj2.center[0]) / w
+            return float(min(margin / 0.5, 1.0))
+        if relation in {"above", "below"}:
+            h = max(obj1.image_height, obj2.image_height, 1)
+            margin = abs(obj1.center[1] - obj2.center[1]) / h
+            return float(min(margin / 0.5, 1.0))
+        return 1.0
+
+
+# ---------------------------------------------------------------------------
+# Scene graph – pairwise spatial relations with multi-hop traversal
+# ---------------------------------------------------------------------------
+
+@dataclass
+class SpatialRelation:
+    """A directed spatial relationship between two detected objects."""
+
+    subject: str    # label of the subject object
+    relation: str   # e.g. "left_of", "closer_than", "above", "overlaps"
+    object_: str    # label of the object (target)
+    confidence: float = 1.0
+
+
+class SceneGraph:
+    """Structured graph of pairwise spatial relations between detected objects.
+
+    Edges are directed: ``subject --relation--> object_``.
+
+    Supported relations (auto-computed on construction):
+      * ``left_of`` / ``right_of``   – horizontal order
+      * ``above`` / ``below``        – vertical order
+      * ``closer_than`` / ``farther_than`` – depth order
+      * ``overlaps``                 – bounding-box IoU ≥ threshold
+
+    The graph also supports **multi-hop** queries so that compound questions
+    such as "What is to the left of the object closest to the camera?" can be
+    answered without LLM assistance.
+    """
+
+    # Minimum normalized difference to declare a directional relation.
+    THRESHOLD_DEPTH: float = 0.05
+    THRESHOLD_HORIZ: float = 0.05
+    THRESHOLD_VERT: float = 0.05
+    OVERLAP_THRESHOLD: float = 0.10
+
+    def __init__(self, objects: List[SpatialObject]) -> None:
+        self.objects: List[SpatialObject] = objects
+        self.relations: List[SpatialRelation] = []
+        self._build()
+
+    # ------------------------------------------------------------------
+    # Construction
+    # ------------------------------------------------------------------
+
+    def _norm_center(self, obj: SpatialObject) -> Tuple[float, float]:
+        """Return the object center normalized to [0, 1]."""
+        return (
+            obj.center[0] / max(obj.image_width, 1),
+            obj.center[1] / max(obj.image_height, 1),
+        )
+
+    def _build(self) -> None:
+        """Compute all pairwise spatial relations."""
+        for i, a in enumerate(self.objects):
+            for j, b in enumerate(self.objects):
+                if i == j:
+                    continue
+                na = self._norm_center(a)
+                nb = self._norm_center(b)
+
+                # Horizontal
+                horiz_diff = na[0] - nb[0]
+                if horiz_diff < -self.THRESHOLD_HORIZ:
+                    conf = SpatialReasoner.reasoning_confidence(a, b, "left_of")
+                    self.relations.append(SpatialRelation(a.label, "left_of", b.label, conf))
+                elif horiz_diff > self.THRESHOLD_HORIZ:
+                    conf = SpatialReasoner.reasoning_confidence(a, b, "right_of")
+                    self.relations.append(SpatialRelation(a.label, "right_of", b.label, conf))
+
+                # Vertical
+                vert_diff = na[1] - nb[1]
+                if vert_diff < -self.THRESHOLD_VERT:
+                    conf = SpatialReasoner.reasoning_confidence(a, b, "above")
+                    self.relations.append(SpatialRelation(a.label, "above", b.label, conf))
+                elif vert_diff > self.THRESHOLD_VERT:
+                    conf = SpatialReasoner.reasoning_confidence(a, b, "below")
+                    self.relations.append(SpatialRelation(a.label, "below", b.label, conf))
+
+                # Depth
+                depth_diff = a.depth_value - b.depth_value
+                if depth_diff < -self.THRESHOLD_DEPTH:
+                    conf = SpatialReasoner.reasoning_confidence(a, b, "closer_than")
+                    self.relations.append(SpatialRelation(a.label, "closer_than", b.label, conf))
+                elif depth_diff > self.THRESHOLD_DEPTH:
+                    conf = SpatialReasoner.reasoning_confidence(a, b, "farther_than")
+                    self.relations.append(SpatialRelation(a.label, "farther_than", b.label, conf))
+
+                # Overlap / occlusion
+                iou = SpatialReasoner.overlap_ratio(a, b)
+                if iou >= self.OVERLAP_THRESHOLD:
+                    self.relations.append(SpatialRelation(a.label, "overlaps", b.label, iou))
+
+    # ------------------------------------------------------------------
+    # Query API
+    # ------------------------------------------------------------------
+
+    def get_relations_for(self, label: str) -> List[SpatialRelation]:
+        """Return all relations whose subject matches *label* (case-insensitive)."""
+        label_l = label.lower()
+        return [r for r in self.relations if r.subject.lower() == label_l]
+
+    def find_objects_by_relation(self, anchor_label: str, relation: str) -> List[str]:
+        """Return labels of objects that *anchor_label* has *relation* with.
+
+        Answers "what does *anchor_label* --relation--> ?"
+        """
+        anchor_l = anchor_label.lower()
+        return [
+            r.object_
+            for r in self.relations
+            if r.subject.lower() == anchor_l and r.relation == relation
+        ]
+
+    def find_subjects_by_relation(self, target_label: str, relation: str) -> List[str]:
+        """Return labels of objects that have *relation* pointing to *target_label*.
+
+        Answers "what is *relation* to *target_label*?" (i.e., ? --relation--> target).
+        Example: ``find_subjects_by_relation("chair", "left_of")`` returns all objects
+        that are to the left of the chair.
+        """
+        target_l = target_label.lower()
+        return [
+            r.subject
+            for r in self.relations
+            if r.object_.lower() == target_l and r.relation == relation
+        ]
+
+    def multi_hop(self, anchor_label: str, relations: List[str]) -> List[str]:
+        """Chain *relations* from *anchor_label* through the graph.
+
+        Example::
+
+            graph.multi_hop("chair", ["closer_than", "left_of"])
+
+        returns all objects Y such that chair --closer_than--> X --left_of--> Y.
+        """
+        current: List[str] = [anchor_label]
+        for rel in relations:
+            nxt: List[str] = []
+            for lbl in current:
+                nxt.extend(self.find_objects_by_relation(lbl, rel))
+            # Deduplicate while preserving insertion order.
+            seen: Dict[str, None] = {}
+            for lbl in nxt:
+                seen[lbl] = None
+            current = list(seen)
+        return current
+
+    # ------------------------------------------------------------------
+    # Serialization / display
+    # ------------------------------------------------------------------
+
+    def summary(self, max_edges: int = 20) -> str:
+        """Return a compact text summary of the most salient edges."""
+        if not self.relations:
+            return "No spatial relations detected."
+        lines = [
+            f"  {r.subject} --{r.relation}--> {r.object_}  (conf={r.confidence:.2f})"
+            for r in self.relations[:max_edges]
+        ]
+        if len(self.relations) > max_edges:
+            lines.append(f"  … ({len(self.relations) - max_edges} more relations)")
+        return "\n".join(lines)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize to a JSON-compatible dictionary."""
+        return {
+            "nodes": [o.label for o in self.objects],
+            "edges": [
+                {
+                    "subject": r.subject,
+                    "relation": r.relation,
+                    "object": r.object_,
+                    "confidence": round(r.confidence, 4),
+                }
+                for r in self.relations
+            ],
+        }
+
 
 # ---------------------------------------------------------------------------
 # Code generation + execution
@@ -198,6 +496,17 @@ class CodeGenerator:
         "When asked a question about a scene, you write self-contained Python code that produces "
         "a variable named `answer` holding the result. "
         "Use only numpy, math, and the provided scene data structures. "
+        "A `SceneGraph` instance named `scene_graph` is available with methods: "
+        "  get_relations_for(label) → list of SpatialRelation, "
+        "  find_objects_by_relation(anchor_label, relation) → list[str]  (anchor --rel--> ?), "
+        "  find_subjects_by_relation(target_label, relation) → list[str]  (? --rel--> target), "
+        "  multi_hop(anchor_label, [rel1, rel2, ...]) → list[str]. "
+        "Relations include: left_of, right_of, above, below, closer_than, farther_than, overlaps. "
+        "You may also call SpatialReasoner.cluster_by_depth(objects) for depth zones, "
+        "SpatialReasoner.count_by_category(objects) for category counts, and "
+        "SpatialReasoner.scene_statistics(objects) for aggregate metrics. "
+        "For multi-hop questions chain scene_graph.multi_hop(). "
+        "To answer 'what is to the left of X?' use scene_graph.find_subjects_by_relation(X, 'left_of'). "
         "Output ONLY valid Python – no markdown fences, no prose."
     )
 
@@ -307,13 +616,31 @@ class CodeGenerator:
         def find_label_from_question(candidates: List[str], q: str) -> Optional[str]:
             # Prefer longer labels first so "dining table" matches before "table".
             for label in sorted(candidates, key=len, reverse=True):
-                if re.search(rf"\\b{re.escape(label)}\\b", q):
+                if re.search(rf"\b{re.escape(label)}\b", q):
                     return label
             return None
 
         obj1 = find_label_from_question(labels, question_l)
         q_without_obj1 = question_l.replace(obj1, "", 1) if obj1 else question_l
         obj2 = find_label_from_question(labels, q_without_obj1)
+
+        # Multi-hop checks must come before simple "closest" / "nearest" checks
+        # so that "to the left of the closest object" is handled correctly.
+        if "to the left of" in question_l and ("closest" in question_l or "nearest" in question_l):
+            return (
+                "anchor = min(objects, key=lambda o: o.depth_value)\n"
+                "answer = scene_graph.find_subjects_by_relation(anchor.label, 'left_of') "
+                "if scene_graph else "
+                "[o.label for o in objects if SpatialReasoner.is_left_of(o, anchor) and o is not anchor]"
+            )
+
+        if "to the right of" in question_l and ("closest" in question_l or "nearest" in question_l):
+            return (
+                "anchor = min(objects, key=lambda o: o.depth_value)\n"
+                "answer = scene_graph.find_subjects_by_relation(anchor.label, 'right_of') "
+                "if scene_graph else "
+                "[o.label for o in objects if SpatialReasoner.is_right_of(o, anchor) and o is not anchor]"
+            )
 
         if "closest" in question_l or "nearest" in question_l:
             return (
@@ -355,6 +682,45 @@ class CodeGenerator:
                 "answer = SpatialReasoner.is_right_of(obj1, obj2) if (obj1 and obj2) else None"
             )
 
+        if obj1 and obj2 and "above" in question_l:
+            return (
+                f"obj1 = SpatialReasoner.get_object_by_label(objects, {obj1!r})\n"
+                f"obj2 = SpatialReasoner.get_object_by_label(objects, {obj2!r})\n"
+                "answer = SpatialReasoner.is_above(obj1, obj2) if (obj1 and obj2) else None"
+            )
+
+        if obj1 and obj2 and "below" in question_l:
+            return (
+                f"obj1 = SpatialReasoner.get_object_by_label(objects, {obj1!r})\n"
+                f"obj2 = SpatialReasoner.get_object_by_label(objects, {obj2!r})\n"
+                "answer = SpatialReasoner.is_below(obj1, obj2) if (obj1 and obj2) else None"
+            )
+
+        if obj1 and obj2 and ("overlap" in question_l or "occlu" in question_l):
+            return (
+                f"obj1 = SpatialReasoner.get_object_by_label(objects, {obj1!r})\n"
+                f"obj2 = SpatialReasoner.get_object_by_label(objects, {obj2!r})\n"
+                "iou = SpatialReasoner.overlap_ratio(obj1, obj2) if (obj1 and obj2) else 0.0\n"
+                "answer = iou"
+            )
+
+        if "how many" in question_l or "count" in question_l:
+            return (
+                "counts = SpatialReasoner.count_by_category(objects)\n"
+                "answer = counts"
+            )
+
+        if "depth zone" in question_l or "foreground" in question_l or "background" in question_l:
+            return (
+                "zones = SpatialReasoner.cluster_by_depth(objects)\n"
+                "answer = {z: [o.label for o in objs] for z, objs in zones.items()}"
+            )
+
+        if "statistic" in question_l or "summary" in question_l or "overview" in question_l:
+            return (
+                "answer = SpatialReasoner.scene_statistics(objects)"
+            )
+
         return (
             "summary = [\n"
             "    {\n"
@@ -393,14 +759,33 @@ class CodeGenerator:
             f"depth={o.depth_value:.3f} center={o.center} area={o.area:.4f}"
             for i, o in enumerate(scene.objects)
         )
+        graph_section = ""
+        if scene.scene_graph is not None:
+            graph_section = (
+                f"\nScene graph (spatial edges):\n{scene.scene_graph.summary(max_edges=30)}\n"
+            )
+        stats = SpatialReasoner.scene_statistics(scene.objects)
+        zones = SpatialReasoner.cluster_by_depth(scene.objects)
+        zone_desc = "  " + "  ".join(
+            f"{z}: {[o.label for o in objs]}" for z, objs in zones.items()
+        )
         return (
-            f"Scene objects:\n{objects_desc}\n\n"
-            f"Question: {question}\n\n"
+            f"Scene objects:\n{objects_desc}\n"
+            f"{graph_section}"
+            f"\nDepth zones:\n{zone_desc}\n"
+            f"\nScene statistics: count={stats.get('count', 0)}, "
+            f"categories={stats.get('categories', {})}\n"
+            f"\nQuestion: {question}\n\n"
             "Write Python code that assigns the answer to a variable named `answer`. "
             "You may use numpy as `np`. "
             "The list `objects` contains SpatialObject instances with attributes: "
             "label, confidence, bbox, center, depth_value, area, image_height, image_width. "
-            "The helper class `SpatialReasoner` is available."
+            "The helper class `SpatialReasoner` is available with methods: "
+            "is_closer, is_farther, is_left_of, is_right_of, is_above, is_below, "
+            "overlap_ratio, find_nearest_neighbor, cluster_by_depth, count_by_category, "
+            "scene_statistics, reasoning_confidence. "
+            "A `scene_graph` (SceneGraph) is available with multi_hop(), "
+            "get_relations_for(), find_objects_by_relation(), and find_subjects_by_relation()."
         )
 
     def generate_code(self, question: str, scene: SceneAnalysis) -> str:
@@ -464,6 +849,7 @@ class CodeGenerator:
             fallback_reason = "; ".join(provider_errors)
 
         if fallback_reason:
+            # fallback_reason contains only provider names and exception class names, not credentials.
             print(f"[CodeGenerator] Using free fallback reasoner: {fallback_reason}")
             code = self._fallback_code(question, scene)
 
@@ -486,8 +872,10 @@ class CodeGenerator:
             "np": np,
             "SpatialObject": SpatialObject,
             "SpatialReasoner": SpatialReasoner,
+            "SceneGraph": SceneGraph,
             "scene_analysis": scene,
             "objects": scene.objects,
+            "scene_graph": scene.scene_graph,
         }
         try:
             exec(code, exec_globals)  # noqa: S102  # code is LLM-generated; review before production use
@@ -519,6 +907,7 @@ class VADARAgent:
         min_detection_confidence: float = 0.35,
         max_objects: int = 40,
         enable_segmentation: bool = False,
+        build_scene_graph: bool = True,
     ):
         self.vision_models = VisionModels(
             use_gpu=use_gpu,
@@ -536,6 +925,7 @@ class VADARAgent:
         )
         self.min_detection_confidence = max(0.0, min(1.0, min_detection_confidence))
         self.max_objects = max_objects
+        self.build_scene_graph = build_scene_graph
         self._last_analysis: Optional[SceneAnalysis] = None
 
     # ------------------------------------------------------------------
@@ -616,6 +1006,15 @@ class VADARAgent:
                 "detections_after_filter": float(len(objects)),
             },
         )
+
+        if self.build_scene_graph:
+            t_graph = time.perf_counter()
+            analysis.scene_graph = SceneGraph(objects)
+            analysis.processing_times["scene_graph_ms"] = (
+                time.perf_counter() - t_graph
+            ) * 1000.0
+            analysis.processing_times["total_ms"] = (time.perf_counter() - t0) * 1000.0
+
         self._last_analysis = analysis
         return analysis
 
@@ -628,7 +1027,7 @@ class VADARAgent:
         code = self.code_generator.generate_code(question, scene)
         answer, status = self.code_generator.execute_code(code, scene)
 
-        return {
+        result: Dict[str, Any] = {
             "question": question,
             "answer": answer,
             "status": status,
@@ -636,6 +1035,9 @@ class VADARAgent:
             "objects_detected": [asdict(o) for o in scene.objects],
             "timestamp": scene.timestamp,
         }
+        if scene.scene_graph is not None:
+            result["scene_graph"] = scene.scene_graph.to_dict()
+        return result
 
     @property
     def last_analysis(self) -> Optional[SceneAnalysis]:

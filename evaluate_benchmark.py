@@ -156,6 +156,7 @@ class BenchmarkEvaluator:
         min_detection_confidence: float = 0.35,
         max_objects: int = 40,
         enable_segmentation: bool = False,
+        build_scene_graph: bool = True,
     ) -> None:
         self.agent = VADARAgent(
             api_key=api_key,
@@ -169,6 +170,7 @@ class BenchmarkEvaluator:
             min_detection_confidence=min_detection_confidence,
             max_objects=max_objects,
             enable_segmentation=enable_segmentation,
+            build_scene_graph=build_scene_graph,
         )
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -199,9 +201,11 @@ class BenchmarkEvaluator:
         sample_result["scene_metrics"] = {
             "detection_ms": scene_timing.get("detection_ms"),
             "depth_ms": scene_timing.get("depth_ms"),
+            "scene_graph_ms": scene_timing.get("scene_graph_ms"),
             "scene_total_ms": scene_timing.get("total_ms"),
             "detections_before_filter": int(scene_timing.get("detections_before_filter", 0)),
             "detections_after_filter": int(scene_timing.get("detections_after_filter", len(scene.objects))),
+            "scene_graph_edges": len(scene.scene_graph.relations) if scene.scene_graph else None,
         }
 
         for q_idx, question in enumerate(questions):
@@ -410,6 +414,11 @@ def main() -> None:
         action="store_true",
         help="Preload panoptic segmentation model (off by default for speed)",
     )
+    parser.add_argument(
+        "--no-scene-graph",
+        action="store_true",
+        help="Disable scene graph construction (faster, less context for LLM)",
+    )
     args = parser.parse_args()
 
     if args.compute_accuracy:
@@ -456,6 +465,7 @@ def main() -> None:
         min_detection_confidence=args.min_detection_confidence,
         max_objects=args.max_objects,
         enable_segmentation=args.enable_segmentation,
+        build_scene_graph=not args.no_scene_graph,
     )
     evaluator.run_evaluation(test_cases)
     evaluator.generate_summary_report()
