@@ -15,6 +15,7 @@ import os
 import json
 import base64
 import tempfile
+import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass, asdict, field
@@ -24,6 +25,8 @@ import numpy as np
 from PIL import Image
 import openai
 from transformers import pipeline as hf_pipeline
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -76,9 +79,20 @@ class VisionModels:
     ) -> Any:
         try:
             return hf_pipeline(task, model=model, device=device)
-        except Exception:
+        except Exception as primary_exc:
             if fallback_model:
-                return hf_pipeline(fallback_task or task, model=fallback_model, device=device)
+                try:
+                    return hf_pipeline(fallback_task or task, model=fallback_model, device=device)
+                except Exception as fallback_exc:
+                    logger.warning(
+                        "Failed loading primary model '%s' (%s) and fallback model '%s' (%s).",
+                        model,
+                        primary_exc,
+                        fallback_model,
+                        fallback_exc,
+                    )
+                    return None
+            logger.warning("Failed loading model '%s' for task '%s': %s", model, task, primary_exc)
             return None
 
     def detect_objects(self, image: Image.Image) -> List[Dict[str, Any]]:
@@ -112,24 +126,34 @@ class VisionModels:
         if self.vqa is None:
             return None
         try:
-            try:
-                response = self.vqa(image, text=question)
-            except TypeError:
+            response = None
+            for param_name in ("text", "question", "prompt"):
                 try:
-                    response = self.vqa(image, question=question)
+                    response = self.vqa(image, **{param_name: question})
+                    break
                 except TypeError:
-                    response = self.vqa(image, prompt=question)
+                    continue
+
+            if response is None:
+                return None
+
+            def _extract_text(payload: Dict[str, Any]) -> Optional[str]:
+                for key in ("generated_text", "answer", "text"):
+                    if key in payload and payload[key]:
+                        return str(payload[key])
+                return None
+
             if isinstance(response, list) and response:
                 first = response[0]
                 if isinstance(first, dict):
-                    for key in ("generated_text", "answer", "text"):
-                        if key in first and first[key]:
-                            return str(first[key])
+                    extracted = _extract_text(first)
+                    if extracted is not None:
+                        return extracted
                 return str(first)
             if isinstance(response, dict):
-                for key in ("generated_text", "answer", "text"):
-                    if key in response and response[key]:
-                        return str(response[key])
+                extracted = _extract_text(response)
+                if extracted is not None:
+                    return extracted
                 return str(response)
             return str(response)
         except Exception:

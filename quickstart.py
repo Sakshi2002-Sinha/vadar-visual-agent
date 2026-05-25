@@ -137,7 +137,7 @@ def verify_environment() -> bool:
     checks.append(("GroundingDINO detection", check_hf_model_cached("IDEA-Research/grounding-dino-base")))
     checks.append(("UniDepthV2 depth", check_hf_model_cached("lpiccinelli/unidepth-v2-vitl14")))
     checks.append(("SAM2 segmentation", check_hf_model_cached("facebook/sam2-hiera-large")))
-    checks.append(("MoLMo VQA", check_hf_model_cached("allenai/Molmo-7B-D-0924")))
+    checks.append(("Molmo VQA", check_hf_model_cached("allenai/Molmo-7B-D-0924")))
 
     passed = sum(1 for _, ok in checks if ok)
     total = len(checks)
