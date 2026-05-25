@@ -96,11 +96,16 @@ class VisionModels:
             return None
 
     def detect_objects(self, image: Image.Image) -> List[Dict[str, Any]]:
-        """Detect objects in the image."""
+        """Detect objects in the image with the configured detector model."""
+        if self.object_detector is None:
+            return []
         return self.object_detector(image)
 
     def estimate_depth(self, image: Image.Image) -> np.ndarray:
         """Return a normalized depth map (0 = close, 1 = far) for *image*."""
+        if self.depth_estimator is None:
+            image_array = np.array(image)
+            return np.zeros(image_array.shape[:2], dtype=np.float32)
         result = self.depth_estimator(image)
         depth_map = np.array(result["depth"], dtype=np.float32)
         min_val, max_val = depth_map.min(), depth_map.max()
@@ -156,7 +161,8 @@ class VisionModels:
                     return extracted
                 return str(response)
             return str(response)
-        except Exception:
+        except Exception as exc:
+            logger.warning("Molmo VQA failed: %s", exc)
             return None
 
 

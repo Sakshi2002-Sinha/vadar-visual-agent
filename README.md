@@ -47,7 +47,7 @@ python quickstart.py --image path/to/image.jpg \
 Image
   │
   ▼
-VisionModels  (GroundingDINO detection + UniDepthV2 depth + SAM2 segmentation + MoLMo VQA)
+VisionModels  (GroundingDINO detection + UniDepthV2 depth + SAM2 segmentation + Molmo VQA)
   │
   ▼
 SceneAnalysis  (SpatialObject list + depth map)
