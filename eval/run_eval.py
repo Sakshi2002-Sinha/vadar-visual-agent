@@ -16,18 +16,18 @@ EVAL_DATA: List[Tuple[str, Dict[str, Any], str]] = [
     ("How many objects are in the scene?", {"type": "int", "min": 1}, "counting"),
     ("What is the name of the largest object?", {"type": "str"}, "comparison"),
     ("Find all objects within 1 metre of the origin", {"type": "list"}, "proximity"),
-    ("Is there any object above height 2.0?", {"type": "bool"}, "threshold"),
+    ("Is there any object above height 2.0?", {"type": "bool", "value": True}, "threshold"),
     ("What is the closest object to position [1,0,1]?", {"type": "str"}, "proximity"),
     ("Find all objects that are red", {"type": "list"}, "attribute"),
     ("What is the average height of all objects?", {"type": "float"}, "aggregation"),
-    ("Are any two objects overlapping?", {"type": "bool"}, "overlap"),
+    ("Are any two objects overlapping?", {"type": "bool", "value": False}, "overlap"),
     ("Find the object furthest from the origin", {"type": "str"}, "proximity"),
     ("List objects sorted by distance to [0,0,0]", {"type": "list"}, "sorting"),
     ("How many objects are taller than 1.5 units?", {"type": "int"}, "comparison"),
     ("What colour is the object at position [2,0,2]?", {"type": "str"}, "attribute"),
     ("Find all objects directly above the floor (y < 0.1)", {"type": "list"}, "containment"),
     ("What is the total volume of all objects combined?", {"type": "float"}, "aggregation"),
-    ("Is the blue object to the left of the red object?", {"type": "bool"}, "relative"),
+    ("Is the blue object to the left of the red object?", {"type": "bool", "value": True}, "relative"),
     ("Find objects that are not touching any other object", {"type": "list"}, "negation"),
     ("What is the bounding box of the entire scene?", {"type": "dict"}, "geometry"),
     ("Find all pairs of objects within 0.5 metres of each other", {"type": "list"}, "proximity"),
@@ -68,6 +68,9 @@ def _matches_expected(result: Any, expected: Dict[str, Any]) -> bool:
 
     if expected_type == "int" and "min" in expected:
         return int(result) >= int(expected["min"])
+
+    if expected_type == "bool" and "value" in expected:
+        return bool(result) is bool(expected["value"])
 
     return True
 

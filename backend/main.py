@@ -10,9 +10,9 @@ from typing import Any, List
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
+from sqlalchemy import func, text
 
-from backend.database import get_run, get_session, init_db, list_runs, save_run
+from backend.database import Run, get_run, get_session, init_db, list_runs, save_run
 from backend.schemas import EvalSummaryResponse, HealthResponse, QueryRequest, QueryResponse, RunDetailResponse, RunListItem
 from backend.tracking import get_experiment_summary, init_tracking, log_run
 from vadar.agent import MAX_ITERATIONS, run_agent_loop
@@ -156,14 +156,23 @@ def health_endpoint() -> HealthResponse:
 @app.get("/eval/summary", response_model=EvalSummaryResponse)
 def eval_summary_endpoint() -> EvalSummaryResponse:
     """Return aggregate stats over stored run history."""
-    rows = list_runs(limit=1_000_000)
-    if not rows:
-        return EvalSummaryResponse(total_runs=0, success_rate=0.0, avg_latency_ms=0.0, failure_breakdown={})
+    session = get_session()
+    try:
+        total_runs = int(session.query(func.count(Run.id)).scalar() or 0)
+        if total_runs == 0:
+            return EvalSummaryResponse(total_runs=0, success_rate=0.0, avg_latency_ms=0.0, failure_breakdown={})
 
-    total_runs = len(rows)
-    success_count = sum(1 for row in rows if row.success)
-    avg_latency = sum(float(row.latency_ms or 0.0) for row in rows) / total_runs
-    breakdown = Counter(row.failure_reason for row in rows if row.failure_reason)
+        success_count = int(session.query(func.count(Run.id)).filter(Run.success.is_(True)).scalar() or 0)
+        avg_latency = float(session.query(func.avg(Run.latency_ms)).scalar() or 0.0)
+        failure_rows = (
+            session.query(Run.failure_reason, func.count(Run.id))
+            .filter(Run.failure_reason.is_not(None))
+            .group_by(Run.failure_reason)
+            .all()
+        )
+        breakdown = Counter({str(reason): int(count) for reason, count in failure_rows if reason})
+    finally:
+        session.close()
 
     _ = get_experiment_summary()
 

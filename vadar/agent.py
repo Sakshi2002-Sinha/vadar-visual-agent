@@ -46,7 +46,7 @@ def _rule_based_program(query: str) -> Optional[str]:
     if "how many objects" in q and "taller" not in q:
         return "result = len(get_all_objects(scene_id))"
 
-    if "largest object" in q or "largest" in q and "volume" in q:
+    if ("largest object" in q) or ("largest" in q and "volume" in q):
         return "objects = get_all_objects(scene_id)\nresult = max(objects, key=lambda o: o.volume).name"
 
     if "within 1 metre of the origin" in q or "within 1 meter of the origin" in q:
