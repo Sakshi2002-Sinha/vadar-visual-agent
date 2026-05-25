@@ -82,7 +82,7 @@ class VisionModels:
             return None
 
     def detect_objects(self, image: Image.Image) -> List[Dict[str, Any]]:
-        """Detect objects in the image using DETR."""
+        """Detect objects in the image."""
         return self.object_detector(image)
 
     def estimate_depth(self, image: Image.Image) -> np.ndarray:
@@ -108,11 +108,17 @@ class VisionModels:
         return []
 
     def answer_vqa(self, image: Image.Image, question: str) -> Optional[str]:
-        """Answer VQA question with MoLMo when available."""
+        """Answer VQA question with Molmo when available."""
         if self.vqa is None:
             return None
         try:
-            response = self.vqa(image, text=question)
+            try:
+                response = self.vqa(image, text=question)
+            except TypeError:
+                try:
+                    response = self.vqa(image, question=question)
+                except TypeError:
+                    response = self.vqa(image, prompt=question)
             if isinstance(response, list) and response:
                 first = response[0]
                 if isinstance(first, dict):
