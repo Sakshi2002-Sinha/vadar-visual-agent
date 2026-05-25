@@ -77,6 +77,11 @@ class VisionModels:
         fallback_model: Optional[str] = None,
         fallback_task: Optional[str] = None,
     ) -> Any:
+        """Build a HF pipeline, with optional fallback model/task on failure.
+
+        Returns:
+            Pipeline instance when loading succeeds, otherwise None.
+        """
         try:
             return hf_pipeline(task, model=model, device=device)
         except Exception as primary_exc:
@@ -138,7 +143,6 @@ class VisionModels:
         if self.vqa is None:
             return None
         try:
-            response = None
             for param_name in ("text", "question", "prompt"):
                 try:
                     response = self.vqa(image, **{param_name: question})
@@ -146,8 +150,7 @@ class VisionModels:
                     break
                 except TypeError:
                     continue
-
-            if response is None:
+            else:
                 logger.warning("VQA invocation failed for argument variants: text/question/prompt.")
                 return None
 
