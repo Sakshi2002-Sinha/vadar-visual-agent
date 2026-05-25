@@ -340,10 +340,7 @@ def main() -> None:
         output_dir=args.output_dir,
         use_gpu=use_gpu,
         model=args.model,
-        base_url=os.environ.get(
-            "OPENAI_BASE_URL",
-            "https://generativelanguage.googleapis.com/v1beta/openai/",
-        ),
+        base_url=os.environ.get("OPENAI_BASE_URL"),
     )
     evaluator.run_evaluation(test_cases)
     evaluator.generate_summary_report()

@@ -182,10 +182,7 @@ def run_demo(image_path: str, question: str) -> None:
         api_key=api_key,
         use_gpu=use_gpu,
         model=os.environ.get("LLM_MODEL", "google/gemini-2.0-flash"),
-        base_url=os.environ.get(
-            "OPENAI_BASE_URL",
-            "https://generativelanguage.googleapis.com/v1beta/openai/",
-        ),
+        base_url=os.environ.get("OPENAI_BASE_URL"),
     )
 
     # Step 1 – analyse

@@ -135,6 +135,7 @@ class VisionModels:
             for param_name in ("text", "question", "prompt"):
                 try:
                     response = self.vqa(image, **{param_name: question})
+                    logger.debug("Molmo VQA invocation succeeded with '%s' argument.", param_name)
                     break
                 except TypeError:
                     continue
@@ -462,10 +463,7 @@ if __name__ == "__main__":
     _agent = VADARAgent(
         _api_key,
         model=os.environ.get("LLM_MODEL", "google/gemini-2.0-flash"),
-        base_url=os.environ.get(
-            "OPENAI_BASE_URL",
-            "https://generativelanguage.googleapis.com/v1beta/openai/",
-        ),
+        base_url=os.environ.get("OPENAI_BASE_URL"),
     )
     _result = _agent.answer_question(sys.argv[2], sys.argv[1])
     print(json.dumps(_result, indent=2, default=str))
