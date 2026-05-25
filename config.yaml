@@ -2,13 +2,14 @@
 # Loaded by evaluate_benchmark.py and vadar_agent.py
 
 vision_models:
-  object_detection: "facebook/detr-resnet-50"
-  depth_estimation: "Intel/dpt-large"
-  segmentation: "facebook/detr-resnet-50-panoptic"
+  object_detection: "IDEA-Research/grounding-dino-base"
+  depth_estimation: "lpiccinelli/unidepth-v2-vitl14"
+  segmentation: "facebook/sam2-hiera-large"
+  vqa: "allenai/Molmo-7B-D-0924"
 
-openai:
+llm:
   # Model used for spatial-reasoning code generation
-  model: "gpt-4o"
+  model: "google/gemini-2.0-flash"
   temperature: 0.3
   max_tokens: 1500
 
