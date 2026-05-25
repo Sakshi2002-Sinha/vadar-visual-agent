@@ -126,6 +126,13 @@ class VisionModels:
             return [output]
         return []
 
+    @staticmethod
+    def _extract_generated_text(payload: Dict[str, Any]) -> Optional[str]:
+        for key in ("generated_text", "answer", "text"):
+            if key in payload and payload[key]:
+                return str(payload[key])
+        return None
+
     def answer_vqa(self, image: Image.Image, question: str) -> Optional[str]:
         """Answer a VQA question with the configured model when available."""
         if self.vqa is None:
@@ -141,23 +148,18 @@ class VisionModels:
                     continue
 
             if response is None:
-                return None
-
-            def _extract_text(payload: Dict[str, Any]) -> Optional[str]:
-                for key in ("generated_text", "answer", "text"):
-                    if key in payload and payload[key]:
-                        return str(payload[key])
+                logger.warning("VQA invocation failed for argument variants: text/question/prompt.")
                 return None
 
             if isinstance(response, list) and response:
                 first = response[0]
                 if isinstance(first, dict):
-                    extracted = _extract_text(first)
+                    extracted = self._extract_generated_text(first)
                     if extracted is not None:
                         return extracted
                 return str(first)
             if isinstance(response, dict):
-                extracted = _extract_text(response)
+                extracted = self._extract_generated_text(response)
                 if extracted is not None:
                     return extracted
                 return str(response)
