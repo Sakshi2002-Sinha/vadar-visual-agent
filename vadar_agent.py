@@ -127,7 +127,7 @@ class VisionModels:
         return []
 
     def answer_vqa(self, image: Image.Image, question: str) -> Optional[str]:
-        """Answer VQA question with Molmo when available."""
+        """Answer a VQA question with the configured model when available."""
         if self.vqa is None:
             return None
         try:
@@ -135,7 +135,7 @@ class VisionModels:
             for param_name in ("text", "question", "prompt"):
                 try:
                     response = self.vqa(image, **{param_name: question})
-                    logger.debug("Molmo VQA invocation succeeded with '%s' argument.", param_name)
+                    logger.debug("VQA invocation succeeded with '%s' argument.", param_name)
                     break
                 except TypeError:
                     continue
@@ -163,7 +163,7 @@ class VisionModels:
                 return str(response)
             return str(response)
         except Exception as exc:
-            logger.warning("Molmo VQA failed: %s", exc)
+            logger.warning("VQA failed: %s", exc)
             return None
 
 
