@@ -35,21 +35,51 @@ class VisionModels:
 
     def __init__(self, use_gpu: bool = False):
         device = 0 if use_gpu else -1
-        self.object_detector = hf_pipeline(
-            "object-detection",
-            model="facebook/detr-resnet-50",
+        object_model = os.environ.get("OBJECT_DETECTION_MODEL", "IDEA-Research/grounding-dino-base")
+        depth_model = os.environ.get("DEPTH_ESTIMATION_MODEL", "lpiccinelli/unidepth-v2-vitl14")
+        segmentation_model = os.environ.get("SEGMENTATION_MODEL", "facebook/sam2-hiera-large")
+        vqa_model = os.environ.get("VQA_MODEL", "allenai/Molmo-7B-D-0924")
+
+        self.object_detector = self._build_pipeline(
+            task="object-detection",
+            model=object_model,
             device=device,
+            fallback_model="facebook/detr-resnet-50",
         )
-        self.depth_estimator = hf_pipeline(
-            "depth-estimation",
-            model="Intel/dpt-large",
+        self.depth_estimator = self._build_pipeline(
+            task="depth-estimation",
+            model=depth_model,
             device=device,
+            fallback_model="Intel/dpt-large",
         )
-        self.segmentation = hf_pipeline(
-            "image-segmentation",
-            model="facebook/detr-resnet-50-panoptic",
+        self.segmentation = self._build_pipeline(
+            task="mask-generation",
+            model=segmentation_model,
             device=device,
+            fallback_model="facebook/detr-resnet-50-panoptic",
+            fallback_task="image-segmentation",
         )
+        self.vqa = self._build_pipeline(
+            task="image-text-to-text",
+            model=vqa_model,
+            device=device,
+            fallback_model=None,
+        )
+
+    @staticmethod
+    def _build_pipeline(
+        task: str,
+        model: str,
+        device: int,
+        fallback_model: Optional[str] = None,
+        fallback_task: Optional[str] = None,
+    ) -> Any:
+        try:
+            return hf_pipeline(task, model=model, device=device)
+        except Exception:
+            if fallback_model:
+                return hf_pipeline(fallback_task or task, model=fallback_model, device=device)
+            return None
 
     def detect_objects(self, image: Image.Image) -> List[Dict[str, Any]]:
         """Detect objects in the image using DETR."""
@@ -65,8 +95,39 @@ class VisionModels:
         return depth_map
 
     def segment_objects(self, image: Image.Image) -> List[Dict[str, Any]]:
-        """Perform panoptic segmentation and return segment list."""
-        return self.segmentation(image)
+        """Perform segmentation and return segment list."""
+        if self.segmentation is None:
+            return []
+        output = self.segmentation(image)
+        if isinstance(output, list):
+            return output
+        if isinstance(output, dict):
+            if "segments_info" in output and isinstance(output["segments_info"], list):
+                return output["segments_info"]
+            return [output]
+        return []
+
+    def answer_vqa(self, image: Image.Image, question: str) -> Optional[str]:
+        """Answer VQA question with MoLMo when available."""
+        if self.vqa is None:
+            return None
+        try:
+            response = self.vqa(image, text=question)
+            if isinstance(response, list) and response:
+                first = response[0]
+                if isinstance(first, dict):
+                    for key in ("generated_text", "answer", "text"):
+                        if key in first and first[key]:
+                            return str(first[key])
+                return str(first)
+            if isinstance(response, dict):
+                for key in ("generated_text", "answer", "text"):
+                    if key in response and response[key]:
+                        return str(response[key])
+                return str(response)
+            return str(response)
+        except Exception:
+            return None
 
 
 # ---------------------------------------------------------------------------
@@ -175,8 +236,13 @@ class CodeGenerator:
         "Output ONLY valid Python – no markdown fences, no prose."
     )
 
-    def __init__(self, api_key: str, model: str = "gpt-4o"):
-        openai.api_key = api_key
+    def __init__(
+        self,
+        api_key: str,
+        model: str = "google/gemini-2.0-flash",
+        base_url: Optional[str] = None,
+    ):
+        self.client = openai.OpenAI(api_key=api_key, base_url=base_url)
         self.model = model
         self.history: List[Dict[str, Any]] = []
 
@@ -198,7 +264,7 @@ class CodeGenerator:
 
     def generate_code(self, question: str, scene: SceneAnalysis) -> str:
         """Call the OpenAI Chat API and return generated Python code."""
-        response = openai.chat.completions.create(
+        response = self.client.chat.completions.create(
             model=self.model,
             messages=[
                 {"role": "system", "content": self._SYSTEM_PROMPT},
@@ -243,10 +309,16 @@ class VADARAgent:
     to answer free-form spatial questions about images.
     """
 
-    def __init__(self, api_key: str, use_gpu: bool = False, model: str = "gpt-4o"):
+    def __init__(
+        self,
+        api_key: str,
+        use_gpu: bool = False,
+        model: str = "google/gemini-2.0-flash",
+        base_url: Optional[str] = None,
+    ):
         self.vision_models = VisionModels(use_gpu=use_gpu)
         self.spatial_reasoner = SpatialReasoner()
-        self.code_generator = CodeGenerator(api_key, model=model)
+        self.code_generator = CodeGenerator(api_key, model=model, base_url=base_url)
         self._last_analysis: Optional[SceneAnalysis] = None
 
     # ------------------------------------------------------------------
@@ -346,11 +418,18 @@ if __name__ == "__main__":
         print("Usage: python vadar_agent.py <image_path> <question>")
         sys.exit(1)
 
-    _api_key = os.environ.get("OPENAI_API_KEY", "")
+    _api_key = os.environ.get("GEMINI_API_KEY", os.environ.get("OPENAI_API_KEY", ""))
     if not _api_key:
-        print("ERROR: OPENAI_API_KEY environment variable is not set.")
+        print("ERROR: GEMINI_API_KEY (or OPENAI_API_KEY) environment variable is not set.")
         sys.exit(1)
 
-    _agent = VADARAgent(_api_key)
+    _agent = VADARAgent(
+        _api_key,
+        model=os.environ.get("LLM_MODEL", "google/gemini-2.0-flash"),
+        base_url=os.environ.get(
+            "OPENAI_BASE_URL",
+            "https://generativelanguage.googleapis.com/v1beta/openai/",
+        ),
+    )
     _result = _agent.answer_question(sys.argv[2], sys.argv[1])
     print(json.dumps(_result, indent=2, default=str))

@@ -2,7 +2,7 @@
 
 A VADAR-inspired Visual Agent for 3D Spatial Reasoning on 2D Images.  
 Implements agentic code generation and execution for spatial understanding,
-using object detection, monocular depth estimation, and the OpenAI API.
+using object detection, monocular depth estimation, and Gemini-based code generation.
 
 ---
 
@@ -24,9 +24,9 @@ using object detection, monocular depth estimation, and the OpenAI API.
 # 1. Install dependencies
 pip install -r requirements.txt
 
-# 2. Set your OpenAI API key
+# 2. Set your Gemini API key
 cp .env.example .env
-# Edit .env and set OPENAI_API_KEY=sk-...
+# Edit .env and set GEMINI_API_KEY=...
 
 # 3. Verify the environment
 python quickstart.py --verify-only
@@ -47,13 +47,13 @@ python quickstart.py --image path/to/image.jpg \
 Image
   │
   ▼
-VisionModels  (DETR object-detection + DPT depth estimation)
+VisionModels  (GroundingDINO detection + UniDepthV2 depth + SAM2 segmentation + MoLMo VQA)
   │
   ▼
 SceneAnalysis  (SpatialObject list + depth map)
   │
   ▼
-CodeGenerator  (OpenAI → Python program)
+CodeGenerator  (google/gemini-2.0-flash → Python program)
   │
   ▼
 execute_code() → answer

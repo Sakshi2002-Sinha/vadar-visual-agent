@@ -88,14 +88,11 @@ def check_torch_cuda() -> bool:
 
 
 def check_api_key() -> bool:
-    key = os.environ.get("OPENAI_API_KEY", "")
-    if key and key.startswith("sk-"):
-        _ok("OPENAI_API_KEY is set")
-        return True
+    key = os.environ.get("GEMINI_API_KEY", os.environ.get("OPENAI_API_KEY", ""))
     if key:
-        _warn("OPENAI_API_KEY is set but does not start with 'sk-' – may be invalid")
+        _ok("GEMINI_API_KEY / OPENAI_API_KEY is set")
         return True
-    _fail("OPENAI_API_KEY is not set  (export OPENAI_API_KEY=sk-...)")
+    _fail("GEMINI_API_KEY is not set  (export GEMINI_API_KEY=...)")
     return False
 
 
@@ -134,12 +131,13 @@ def verify_environment() -> bool:
     checks.append(("PIL", check_package("PIL", "Pillow")))
     checks.append(("numpy", check_package("numpy")))
     checks.append(("matplotlib", check_package("matplotlib")))
-    checks.append(("OPENAI_API_KEY", check_api_key()))
+    checks.append(("API key", check_api_key()))
 
     print()
-    checks.append(("DETR detection", check_hf_model_cached("facebook/detr-resnet-50")))
-    checks.append(("DPT depth", check_hf_model_cached("Intel/dpt-large")))
-    checks.append(("DETR panoptic", check_hf_model_cached("facebook/detr-resnet-50-panoptic")))
+    checks.append(("GroundingDINO detection", check_hf_model_cached("IDEA-Research/grounding-dino-base")))
+    checks.append(("UniDepthV2 depth", check_hf_model_cached("lpiccinelli/unidepth-v2-vitl14")))
+    checks.append(("SAM2 segmentation", check_hf_model_cached("facebook/sam2-hiera-large")))
+    checks.append(("MoLMo VQA", check_hf_model_cached("allenai/Molmo-7B-D-0924")))
 
     passed = sum(1 for _, ok in checks if ok)
     total = len(checks)
@@ -164,9 +162,9 @@ def run_demo(image_path: str, question: str) -> None:
 
     from vadar_agent import VADARAgent  # noqa: PLC0415
 
-    api_key = os.environ.get("OPENAI_API_KEY", "")
+    api_key = os.environ.get("GEMINI_API_KEY", os.environ.get("OPENAI_API_KEY", ""))
     if not api_key:
-        _fail("OPENAI_API_KEY is not set – cannot run demo.")
+        _fail("GEMINI_API_KEY is not set – cannot run demo.")
         sys.exit(1)
 
     try:
@@ -180,7 +178,15 @@ def run_demo(image_path: str, question: str) -> None:
     print(f"Question: {question}")
     print(f"GPU:      {'yes' if use_gpu else 'no (CPU)'}\n")
 
-    agent = VADARAgent(api_key=api_key, use_gpu=use_gpu)
+    agent = VADARAgent(
+        api_key=api_key,
+        use_gpu=use_gpu,
+        model=os.environ.get("LLM_MODEL", "google/gemini-2.0-flash"),
+        base_url=os.environ.get(
+            "OPENAI_BASE_URL",
+            "https://generativelanguage.googleapis.com/v1beta/openai/",
+        ),
+    )
 
     # Step 1 – analyse
     print("[Step 1/4] Analysing image …", end=" ", flush=True)

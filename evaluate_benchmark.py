@@ -146,9 +146,10 @@ class BenchmarkEvaluator:
         api_key: str,
         output_dir: str = "benchmark_results",
         use_gpu: bool = False,
-        model: str = "gpt-4o",
+        model: str = "google/gemini-2.0-flash",
+        base_url: Optional[str] = None,
     ) -> None:
-        self.agent = VADARAgent(api_key=api_key, use_gpu=use_gpu, model=model)
+        self.agent = VADARAgent(api_key=api_key, use_gpu=use_gpu, model=model, base_url=base_url)
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.results: List[Dict[str, Any]] = []
@@ -308,7 +309,7 @@ def main() -> None:
     parser.add_argument(
         "--compute-accuracy", action="store_true", help="Compute accuracy from --results"
     )
-    parser.add_argument("--model", default="gpt-4o", help="OpenAI model for code generation")
+    parser.add_argument("--model", default="google/gemini-2.0-flash", help="LLM model for code generation")
     args = parser.parse_args()
 
     if args.compute_accuracy:
@@ -322,9 +323,9 @@ def main() -> None:
         parser.print_help()
         sys.exit(1)
 
-    api_key = os.environ.get("OPENAI_API_KEY", "")
+    api_key = os.environ.get("GEMINI_API_KEY", os.environ.get("OPENAI_API_KEY", ""))
     if not api_key:
-        print("ERROR: OPENAI_API_KEY is not set.")
+        print("ERROR: GEMINI_API_KEY (or OPENAI_API_KEY) is not set.")
         sys.exit(1)
 
     try:
@@ -339,6 +340,10 @@ def main() -> None:
         output_dir=args.output_dir,
         use_gpu=use_gpu,
         model=args.model,
+        base_url=os.environ.get(
+            "OPENAI_BASE_URL",
+            "https://generativelanguage.googleapis.com/v1beta/openai/",
+        ),
     )
     evaluator.run_evaluation(test_cases)
     evaluator.generate_summary_report()
