@@ -8,7 +8,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, create_engine
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text, create_engine
 from sqlalchemy.orm import Session, declarative_base, relationship, sessionmaker
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./vadar.db")
@@ -24,19 +24,16 @@ class Run(Base):
 
     __tablename__ = "runs"
 
-    id = String(36),
-    id = Base.metadata.tables.get("runs") if False else None
-
-    id = __import__("sqlalchemy").Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    query = __import__("sqlalchemy").Column(Text, nullable=False)
-    synthesised_program = __import__("sqlalchemy").Column(Text, nullable=True)
-    result_json = __import__("sqlalchemy").Column(Text, nullable=True)
-    success = __import__("sqlalchemy").Column(Boolean, nullable=False)
-    failure_reason = __import__("sqlalchemy").Column(String(64), nullable=True)
-    iterations = __import__("sqlalchemy").Column(Integer, default=0, nullable=False)
-    latency_ms = __import__("sqlalchemy").Column(Float, nullable=True)
-    scene_id = __import__("sqlalchemy").Column(String(128), default="default", nullable=False)
-    created_at = __import__("sqlalchemy").Column(DateTime, default=datetime.utcnow, nullable=False)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    query = Column(Text, nullable=False)
+    synthesised_program = Column(Text, nullable=True)
+    result_json = Column(Text, nullable=True)
+    success = Column(Boolean, nullable=False)
+    failure_reason = Column(String(64), nullable=True)
+    iterations = Column(Integer, default=0, nullable=False)
+    latency_ms = Column(Float, nullable=True)
+    scene_id = Column(String(128), default="default", nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     eval_results = relationship("EvalResult", back_populates="run")
 
@@ -46,11 +43,11 @@ class EvalQuery(Base):
 
     __tablename__ = "eval_queries"
 
-    id = __import__("sqlalchemy").Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    query = __import__("sqlalchemy").Column(Text, nullable=False)
-    expected_result_json = __import__("sqlalchemy").Column(Text, nullable=False)
-    category = __import__("sqlalchemy").Column(String(64), nullable=False)
-    created_at = __import__("sqlalchemy").Column(DateTime, default=datetime.utcnow, nullable=False)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    query = Column(Text, nullable=False)
+    expected_result_json = Column(Text, nullable=False)
+    category = Column(String(64), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     eval_results = relationship("EvalResult", back_populates="eval_query")
 
@@ -60,11 +57,11 @@ class EvalResult(Base):
 
     __tablename__ = "eval_results"
 
-    id = __import__("sqlalchemy").Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    eval_query_id = __import__("sqlalchemy").Column(String(36), ForeignKey("eval_queries.id"), nullable=False)
-    run_id = __import__("sqlalchemy").Column(String(36), ForeignKey("runs.id"), nullable=False)
-    passed = __import__("sqlalchemy").Column(Boolean, nullable=False)
-    created_at = __import__("sqlalchemy").Column(DateTime, default=datetime.utcnow, nullable=False)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    eval_query_id = Column(String(36), ForeignKey("eval_queries.id"), nullable=False)
+    run_id = Column(String(36), ForeignKey("runs.id"), nullable=False)
+    passed = Column(Boolean, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     eval_query = relationship("EvalQuery", back_populates="eval_results")
     run = relationship("Run", back_populates="eval_results")

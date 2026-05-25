@@ -69,10 +69,9 @@ def _execute_worker(program: str, scene_id: str, queue: mp.Queue) -> None:
         "scene_id": scene_id,
     }
 
-    locals_ctx: Dict[str, Any] = {}
     try:
-        exec(program, globals_ctx, locals_ctx)  # noqa: S102
-        output = locals_ctx.get("result", globals_ctx.get("result"))
+        exec(program, globals_ctx, globals_ctx)  # noqa: S102
+        output = globals_ctx.get("result")
         serialized: Any = output
         if isinstance(output, list):
             serialized = [object_to_dict(item) if hasattr(item, "name") else item for item in output]

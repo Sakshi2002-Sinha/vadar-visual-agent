@@ -6,7 +6,7 @@ import json
 import os
 import time
 from collections import Counter
-from typing import Any, Dict, List
+from typing import Any, List
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,6 +18,10 @@ from backend.tracking import get_experiment_summary, init_tracking, log_run
 from vadar.agent import MAX_ITERATIONS, run_agent_loop
 
 app = FastAPI(title="VADAR API", version="1.0.0")
+
+# Ensure initialization also happens for test clients that bypass startup hooks.
+init_db()
+init_tracking()
 
 app.add_middleware(
     CORSMiddleware,
